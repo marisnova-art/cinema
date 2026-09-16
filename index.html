@@ -1,0 +1,1627 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a130e">
+<title>MY CINEMA · 나의 영화·드라마 기록</title>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   CONFIG — 여기에 키를 입력하세요 (개인용 서비스 전제)
+   ─────────────────────────────────────────────────────────────────────
+   · TMDB_API_KEY      : TMDB 설정 > API 의 "API 키"(v3) 또는 "API 읽기 액세스 토큰"(v4, eyJ…)
+   · SUPABASE_URL      : https://xxxxxxxx.supabase.co
+   · SUPABASE_ANON_KEY : Project Settings > API 의 anon(public) 키 또는 publishable 키
+   · 처음 한 번, 파일 맨 아래 <script id="schemaSql"> 의 SQL 을 Supabase SQL Editor 에서 실행하세요.
+   · 비워두면 앱 안의 [설정]에서 입력할 수 있고, 그 값은 이 브라우저에만 저장됩니다.
+   ⚠ 이 파일에는 키가 들어갑니다. 공개 저장소·공개 호스팅에 올리지 마세요.
+   ═══════════════════════════════════════════════════════════════════════ */
+window.CONFIG = {
+  TMDB_API_KEY: '',
+  SUPABASE_URL: '',
+  SUPABASE_ANON_KEY: '',
+  LANGUAGE: 'ko-KR',
+  INCLUDE_ADULT: false,
+  CACHE_DAYS: 30          // DB에 저장된 TMDB 정보가 이 일수보다 오래되면 자동 갱신
+};
+</script>
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://image.tmdb.org">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+
+<style>
+:root{
+  --meadow:#0a130e;
+  --bloom:#ff6a26;
+  --bloom-soft:#ffb07a;
+  --sky:#7aa7c7;
+  --paper:#f4f2ee;
+  --muted:rgba(244,242,238,.66);
+  --dim:rgba(244,242,238,.42);
+  --line:rgba(255,255,255,.22);
+  --line-soft:rgba(255,255,255,.11);
+  --glass-hi:rgba(255,255,255,.13);
+  --glass-lo:rgba(255,255,255,.035);
+  --danger:#ff7b72;
+  --ok:#8fe0b0;
+  --blur:blur(26px) saturate(150%);
+  --r-card:30px;
+  --r-mid:18px;
+  --r-sm:12px;
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --font:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:var(--font);color:var(--paper);background:var(--meadow);
+  font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;
+  min-height:100vh;overflow-x:hidden;
+}
+body.lock{overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+img{display:block;max-width:100%}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--bloom-soft);outline-offset:2px;border-radius:8px}
+[hidden]{display:none!important}
+
+/* ─── Ambient: 흐릿한 정원 사진 같은 배경 ─── */
+#ambient{position:fixed;inset:0;z-index:-1;overflow:hidden;background:
+  radial-gradient(60% 45% at 8% 6%, rgba(122,167,199,.55), transparent 70%),
+  radial-gradient(38% 30% at 2% 32%, rgba(230,240,245,.28), transparent 70%),
+  radial-gradient(30% 24% at 68% 30%, rgba(255,106,38,.55), transparent 70%),
+  radial-gradient(22% 18% at 42% 38%, rgba(255,120,60,.32), transparent 70%),
+  radial-gradient(26% 22% at 4% 66%, rgba(255,106,38,.42), transparent 70%),
+  radial-gradient(70% 50% at 60% 100%, rgba(40,78,38,.75), transparent 70%),
+  linear-gradient(180deg,#0f1a17 0%,#0a130e 55%,#07100a 100%)}
+#ambient .bd{position:absolute;inset:-10%;background-size:cover;background-position:center;
+  filter:blur(40px) saturate(1.25) brightness(.5);opacity:0;transition:opacity 1.4s var(--ease);transform:scale(1.05)}
+#ambient .bd.on{opacity:1}
+#ambient .shade{position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 20%, transparent 40%, rgba(0,0,0,.55) 100%)}
+#ambient .grain{position:absolute;inset:0;opacity:.09;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+@media (prefers-reduced-motion:reduce){#ambient .bd{transition:none}}
+
+/* ─── Glass ─── */
+.glass{
+  position:relative;
+  background:linear-gradient(140deg,var(--glass-hi),var(--glass-lo) 62%);
+  border:1px solid var(--line);
+  border-radius:var(--r-card);
+  -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2), 0 40px 80px -40px rgba(0,0,0,.65);
+}
+.pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 14px;border:1px solid rgba(255,255,255,.55);
+  border-radius:999px;font-size:12.5px;font-weight:400;letter-spacing:.02em;white-space:nowrap;color:var(--paper)}
+.pill.xs{height:22px;padding:0 9px;font-size:11px;border-color:rgba(255,255,255,.4)}
+.pill.on{background:var(--paper);color:#10140f;border-color:var(--paper);font-weight:600}
+.pill.hot{border-color:var(--bloom-soft);color:var(--bloom-soft)}
+.l{font-weight:200}
+.display{margin:0;font-size:clamp(34px,5.2vw,62px);line-height:.98;letter-spacing:-.025em;text-transform:uppercase}
+.display span,.display b{display:block}
+.display b{font-weight:800}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:42px;padding:0 18px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(255,255,255,.06);font-size:14px;font-weight:500;white-space:nowrap;
+  transition:background .2s,border-color .2s,transform .15s}
+.btn:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.4)}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--paper);color:#10140f;border-color:var(--paper);font-weight:700}
+.btn.primary:hover{background:#fff}
+.btn.bloom{background:var(--bloom);border-color:var(--bloom);color:#1a0b02;font-weight:700}
+.btn.sm{height:34px;padding:0 13px;font-size:13px}
+.btn.danger{color:var(--danger);border-color:rgba(255,123,114,.35)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.icon-btn{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:rgba(255,255,255,.05);transition:background .2s}
+.icon-btn:hover{background:rgba(255,255,255,.15)}
+.icon-btn svg{width:18px;height:18px}
+.linkbtn{font-size:13px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.linkbtn:hover{color:var(--paper)}
+
+.seg{display:inline-flex;padding:3px;border-radius:999px;border:1px solid var(--line-soft);background:rgba(0,0,0,.18);gap:2px}
+.seg button{height:32px;padding:0 14px;border-radius:999px;font-size:13px;color:var(--muted);transition:background .2s,color .2s}
+.seg button:hover{color:var(--paper)}
+.seg button.on{background:var(--paper);color:#10140f;font-weight:700}
+
+.chip{height:34px;padding:0 13px;border-radius:999px;border:1px solid var(--line-soft);font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.chip.on{border-color:var(--bloom-soft);color:var(--bloom-soft);background:rgba(255,106,38,.1)}
+
+.select{height:36px;border-radius:999px;border:1px solid var(--line-soft);background:rgba(0,0,0,.25);padding:0 32px 0 14px;font-size:13px;
+  appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center}
+.select option{background:#18201b;color:var(--paper)}
+
+/* ─── Top bar ─── */
+.topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:18px;padding:14px clamp(16px,3vw,36px)}
+.topbar::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(8,14,11,.72),rgba(8,14,11,.38));
+  -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid var(--line-soft)}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-size:18px;letter-spacing:.01em}
+.brand svg{width:22px;height:22px}
+.brand b{font-weight:800}
+.tabs{display:flex;gap:4px;margin-left:10px}
+.tab{display:flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:999px;color:var(--muted);font-size:14px;transition:background .2s,color .2s}
+.tab svg{width:17px;height:17px}
+.tab:hover{color:var(--paper)}
+.tab.on{background:rgba(255,255,255,.12);color:var(--paper);font-weight:600;box-shadow:inset 0 0 0 1px var(--line)}
+.tab em{font-style:normal;font-size:11px;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--paper);color:#10140f;font-weight:700;display:grid;place-items:center}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.sync{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim)}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.sync.ok i{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.sync.err i{background:var(--danger);box-shadow:0 0 10px var(--danger)}
+
+main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
+.notice{max-width:1440px;margin:14px auto 0;padding:0 clamp(16px,3vw,36px)}
+.notice .glass{display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:var(--r-mid);font-size:14px}
+.notice .glass.err{border-color:rgba(255,123,114,.45)}
+.notice p{margin:0;flex:1}
+
+/* ─── Search ─── */
+.searchbar{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 24px;border-radius:999px;margin:6px auto 26px;max-width:980px}
+.searchbar>svg{width:22px;height:22px;flex:none;opacity:.8}
+.searchbar input{flex:1;min-width:0;height:48px;border:0;background:transparent;outline:none;font-size:clamp(16px,1.6vw,19px);font-weight:300}
+.searchbar input::placeholder{color:var(--dim)}
+.searchbar input::-webkit-search-cancel-button{display:none}
+.searchbar .clear{width:34px;height:34px;border-radius:50%;font-size:20px;color:var(--muted)}
+.searchbar .clear:hover{background:rgba(255,255,255,.1);color:var(--paper)}
+.kbd{font-size:11px;color:var(--dim);border:1px solid var(--line-soft);border-radius:6px;padding:1px 6px}
+
+.hero{max-width:980px;margin:0 auto 44px;padding:clamp(24px,4vw,44px);min-height:460px;display:flex;flex-direction:column}
+.hero-top{display:flex;justify-content:space-between;align-items:flex-start}
+.hero-star{width:40px;height:40px}
+.hero .display{margin-top:auto;padding-top:60px}
+.hero-note{display:flex;gap:16px;align-items:flex-start;margin:34px 0 0;font-size:13.5px;color:var(--muted);line-height:1.5}
+.hero-note svg{width:26px;flex:none;margin-top:2px}
+.hero-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-top:46px;font-size:13px;color:var(--muted)}
+.hero-foot>:last-child{text-align:right}
+.circle-go{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.7);display:grid;place-items:center}
+.circle-go svg{width:14px;height:14px}
+.circle-go:hover{background:rgba(255,255,255,.14)}
+
+.row-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 14px}
+.row-head h2{margin:0;font-size:20px;font-weight:300;letter-spacing:-.01em}
+.row-head h2 b{font-weight:800}
+.row-head p{margin:0;font-size:13px;color:var(--dim)}
+.strip{display:grid;grid-auto-flow:column;grid-auto-columns:clamp(118px,12vw,158px);gap:14px;overflow-x:auto;padding:4px 2px 16px;scrollbar-width:thin;margin-bottom:30px;scroll-snap-type:x proximity}
+.strip>*{scroll-snap-align:start}
+.strip::-webkit-scrollbar{height:6px}.strip::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:9px}
+
+.results-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 16px}
+.results-head h2{margin:0;font-size:22px;font-weight:300}
+.results-head h2 b{font-weight:800}
+.results{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:16px}
+.rcard{display:grid;grid-template-columns:128px 1fr;gap:18px;padding:14px;border-radius:24px;cursor:pointer;transition:border-color .2s,background .2s}
+.rcard:hover{border-color:rgba(255,255,255,.42)}
+.rcard .poster{border-radius:14px}
+.rinfo{min-width:0;display:flex;flex-direction:column;gap:5px;padding:2px 4px 2px 0}
+.rtags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:2px}
+.rinfo h3{margin:0;font-size:18px;font-weight:700;line-height:1.3;letter-spacing:-.01em}
+.rinfo h3 .yr{font-weight:200;color:var(--muted);margin-left:6px}
+.rinfo .orig{margin:0;font-size:13px;color:var(--muted);font-weight:300}
+.rinfo .meta{margin:0;font-size:12.5px;color:var(--dim)}
+.rinfo .ov{margin:4px 0 0;font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.ractions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:auto;padding-top:10px}
+.tmdb{margin-left:auto;font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:4px}
+.tmdb b{color:var(--paper);font-weight:700}
+.more-wrap{display:flex;justify-content:center;margin-top:26px}
+
+/* ─── Poster ─── */
+.poster{position:relative;aspect-ratio:2/3;border-radius:16px;overflow:hidden;background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.03));border:1px solid var(--line-soft)}
+.poster img{width:100%;height:100%;object-fit:cover}
+.poster .noimg{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:12px;font-size:13px;font-weight:700;line-height:1.3}
+.poster .noimg svg{width:18px;height:18px;opacity:.6}
+
+.pcard{cursor:pointer;min-width:0}
+.pcard .poster{transition:transform .35s var(--ease),box-shadow .35s var(--ease);box-shadow:0 20px 40px -24px rgba(0,0,0,.8)}
+.pcard:hover .poster{transform:translateY(-4px);box-shadow:0 30px 50px -24px rgba(0,0,0,.9)}
+.pcard h3{margin:10px 0 0;font-size:14px;font-weight:600;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard .sub{margin:2px 0 0;font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard .rate{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:var(--dim);min-height:18px}
+.pcard .rate b{color:var(--bloom-soft);font-weight:700}
+.pc-top{position:absolute;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
+.pc-top .pill{background:rgba(10,16,12,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.pc-icons{display:flex;gap:4px}
+.pc-icons span{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:rgba(10,16,12,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.pc-icons svg{width:13px;height:13px}
+.pc-want{position:absolute;left:8px;bottom:8px;background:rgba(10,16,12,.6)!important;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.pc-saved{position:absolute;right:8px;bottom:8px;width:26px;height:26px;border-radius:50%;background:var(--paper);color:#10140f;display:grid;place-items:center}
+.pc-saved svg{width:14px;height:14px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:26px 18px}
+.group-title{display:flex;align-items:center;gap:12px;margin:34px 0 16px;font-size:15px}
+.group-title:first-child{margin-top:4px}
+.group-title b{font-weight:800}
+.group-title span{color:var(--dim);font-size:13px}
+.group-title::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+
+/* ─── Stars ─── */
+.stars{display:inline-flex;--s:14px;vertical-align:middle}
+.st{position:relative;width:var(--s);height:var(--s);flex:none}
+.st svg{width:var(--s);height:var(--s);display:block;fill:rgba(255,255,255,.2)}
+.st .f{position:absolute;left:0;top:0;height:100%;overflow:hidden}
+.st .f svg{fill:var(--bloom)}
+.stars.lg{--s:38px;cursor:pointer;touch-action:manipulation}
+.stars.md{--s:18px}
+
+/* ─── Library ─── */
+.lib-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin:10px 0 20px}
+.lib-head .display{font-size:clamp(30px,4vw,48px)}
+.lib-head p{margin:0;color:var(--muted);font-size:14px}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px;border-radius:24px;margin-bottom:26px}
+.toolbar .lq{flex:1 1 220px;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:999px;background:rgba(0,0,0,.25);border:1px solid var(--line-soft)}
+.toolbar .lq svg{width:15px;height:15px;opacity:.6}
+.toolbar .lq input{flex:1;min-width:0;border:0;background:transparent;outline:none;font-size:13.5px}
+.toolbar .sep{width:1px;height:22px;background:var(--line-soft)}
+.active-filters{display:flex;flex-wrap:wrap;gap:8px;margin:-12px 0 20px;font-size:13px;color:var(--muted);align-items:center}
+
+.empty{max-width:560px;margin:40px auto;padding:40px;text-align:center;border-radius:var(--r-card)}
+.empty h3{margin:14px 0 6px;font-size:22px;font-weight:300}
+.empty h3 b{font-weight:800}
+.empty p{margin:0 0 20px;color:var(--muted);font-size:14px}
+.empty svg.big{width:40px;height:40px;opacity:.8}
+
+/* ─── Stats ─── */
+.stats-hero{display:grid;grid-template-columns:1.15fr 1fr;gap:18px;margin-bottom:18px}
+.stats-hero .glass{padding:clamp(22px,3vw,36px)}
+.big-count{display:flex;flex-direction:column;justify-content:space-between;min-height:320px}
+.big-count .num{font-size:clamp(80px,11vw,150px);font-weight:200;line-height:.85;letter-spacing:-.05em}
+.big-count .num small{font-size:.22em;font-weight:600;letter-spacing:0;margin-left:10px}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:0}
+.kpi{padding:18px 4px;border-bottom:1px solid var(--line-soft);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px}
+.kpi:nth-child(odd){padding-right:18px;border-right:1px solid var(--line-soft)}
+.kpi:nth-child(even){padding-left:18px}
+.kpi:nth-last-child(-n+2){border-bottom:0}
+.kpi span{font-size:13px;color:var(--muted)}
+.kpi b{font-size:34px;font-weight:300;letter-spacing:-.02em;line-height:1.1}
+.kpi:hover b{color:var(--bloom-soft)}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.stats-grid .glass{padding:clamp(20px,2.6vw,30px)}
+.panel-title{margin:0 0 4px;font-size:19px;font-weight:300}
+.panel-title b{font-weight:800}
+.panel-sub{margin:0 0 20px;font-size:13px;color:var(--dim)}
+.rbars{display:grid;grid-template-columns:repeat(11,1fr);gap:8px;align-items:end;height:200px}
+.rbar{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:100%;cursor:pointer}
+.rbar .col{width:100%;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,var(--bloom),rgba(255,106,38,.35));min-height:3px;transition:filter .2s}
+.rbar.none .col{background:rgba(255,255,255,.2)}
+.rbar:hover .col{filter:brightness(1.3)}
+.rbar em{font-style:normal;font-size:12px;font-weight:700}
+.rbar small{font-size:11px;color:var(--dim)}
+.gbars{display:flex;flex-direction:column;gap:9px}
+.gbar{display:grid;grid-template-columns:96px 1fr 40px;align-items:center;gap:12px;cursor:pointer;font-size:13.5px;text-align:left}
+.gbar .track{height:10px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
+.gbar .track i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,rgba(122,167,199,.7),var(--paper))}
+.gbar:hover .track i{background:linear-gradient(90deg,var(--bloom),var(--bloom-soft))}
+.gbar b{text-align:right;font-weight:700}
+.matrix{display:grid;grid-template-columns:auto 1fr 1fr;border-top:1px solid var(--line-soft)}
+.matrix>*{padding:14px 10px;border-bottom:1px solid var(--line-soft);font-size:13.5px}
+.matrix .h{color:var(--dim);font-size:12.5px}
+.matrix button{text-align:left;font-size:26px;font-weight:300}
+.matrix button:hover{color:var(--bloom-soft)}
+
+/* ─── Modal ─── */
+.modal-root{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:28px 20px;overflow-y:auto}
+.modal-scrim{position:fixed;inset:0;background:rgba(3,6,4,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.modal{position:relative;width:min(1180px,100%);border-radius:34px;overflow:hidden;background:linear-gradient(150deg,rgba(28,38,32,.78),rgba(12,18,14,.86));animation:pop .35s var(--ease)}
+@keyframes pop{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.modal{animation:none}}
+.modal-close{position:absolute;top:18px;right:18px;z-index:3;background:rgba(10,16,12,.5)}
+.d-hero{position:absolute;inset:0 0 auto 0;height:360px;background-image:var(--bd);background-size:cover;background-position:center 25%;opacity:.5;
+  -webkit-mask-image:linear-gradient(180deg,#000 10%,transparent 100%);mask-image:linear-gradient(180deg,#000 10%,transparent 100%)}
+.d-body{position:relative;display:grid;grid-template-columns:250px minmax(0,1fr) 360px;gap:30px;padding:120px 34px 34px}
+.d-poster .poster{border-radius:20px;box-shadow:0 30px 60px -20px rgba(0,0,0,.9)}
+.d-score{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:12px 16px;border:1px solid var(--line-soft);border-radius:16px;font-size:13px;color:var(--muted)}
+.d-score b{font-size:22px;color:var(--paper);font-weight:300}
+.d-tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.d-title{margin:0;font-size:clamp(28px,3.4vw,44px);font-weight:800;line-height:1.08;letter-spacing:-.025em}
+.d-orig{margin:8px 0 0;font-size:17px;font-weight:200;color:var(--muted)}
+.d-tagline{margin:14px 0 0;font-size:14px;color:var(--bloom-soft);font-weight:300}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:10px 20px;margin:24px 0;padding:20px 0;border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);font-size:14px}
+.facts dt{color:var(--dim)}
+.facts dd{margin:0}
+.sec{margin:0 0 10px;font-size:14px;font-weight:700}
+.overview{margin:0 0 26px;color:var(--muted);font-size:14.5px;line-height:1.75;max-width:68ch;white-space:pre-line}
+.cast{display:grid;grid-auto-flow:column;grid-auto-columns:92px;gap:12px;overflow-x:auto;padding-bottom:8px}
+.cast figure{margin:0;font-size:12px;line-height:1.3}
+.cast .face{width:92px;height:92px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.08);border:1px solid var(--line-soft);display:grid;place-items:center;font-size:22px;font-weight:200}
+.cast .face img{width:100%;height:100%;object-fit:cover}
+.cast figcaption{margin-top:8px;text-align:center}
+.cast figcaption b{display:block;font-weight:600}
+.cast figcaption span{color:var(--dim)}
+.loading-line{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin:10px 0}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.2);border-top-color:var(--paper);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.errbox{padding:14px 16px;border:1px solid rgba(255,123,114,.45);border-radius:14px;color:#ffd1cd;font-size:13.5px;display:flex;gap:12px;align-items:center;margin:10px 0}
+.errbox p{margin:0;flex:1}
+
+.record{padding:24px;border-radius:26px;align-self:start;position:sticky;top:20px}
+.rec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.rec-head h3{margin:0;font-size:20px;font-weight:300}
+.rec-head h3 b{font-weight:800}
+.rec-state{font-size:12px;color:var(--dim)}
+.rec-state.dirty{color:var(--bloom-soft)}
+.rec-state.saved{color:var(--ok)}
+.field{margin-top:20px}
+.field>label,.field>.lbl{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted);margin-bottom:8px}
+.status-seg{display:grid;grid-template-columns:1fr 1fr;width:100%}
+.status-seg button{height:40px}
+.rate-row{display:flex;align-items:center;gap:14px}
+.rate-num{font-size:30px;font-weight:200;min-width:52px;letter-spacing:-.02em}
+.input{width:100%;height:42px;border-radius:12px;border:1px solid var(--line-soft);background:rgba(0,0,0,.28);padding:0 14px;outline:none;font-size:14px;color-scheme:dark}
+.input:focus,.textarea:focus{border-color:rgba(255,255,255,.45)}
+.textarea{width:100%;min-height:130px;resize:vertical;border-radius:14px;border:1px solid var(--line-soft);background:rgba(0,0,0,.28);padding:12px 14px;outline:none;font-size:14px;line-height:1.6}
+.count{text-align:right;font-size:11.5px;color:var(--dim);margin-top:4px}
+.toggles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px}
+.toggle{height:44px;border-radius:14px;border:1px solid var(--line-soft);display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;color:var(--muted);transition:all .2s}
+.toggle svg{width:17px;height:17px}
+.toggle:hover{border-color:var(--line);color:var(--paper)}
+.toggle.on{border-color:var(--bloom);color:var(--paper);background:rgba(255,106,38,.16)}
+.toggle.on svg{fill:var(--bloom);stroke:var(--bloom)}
+.rec-actions{display:flex;flex-direction:column;gap:8px;margin-top:22px}
+.rec-actions .btn{width:100%;height:48px}
+.rec-actions .btn.primary.dirty{background:var(--bloom);border-color:var(--bloom);color:#1a0b02}
+.rec-meta{margin-top:12px;font-size:11.5px;color:var(--dim);text-align:center}
+
+/* ─── Settings ─── */
+.settings{width:min(760px,100%);padding:clamp(24px,4vw,40px)}
+.settings .display{font-size:clamp(30px,4vw,44px);margin:26px 0 12px}
+.settings .lead{color:var(--muted);font-size:14px;margin:0 0 8px;max-width:62ch}
+.settings .warn{color:var(--bloom-soft);font-size:13px;margin:0 0 22px}
+.sfield{margin-top:16px}
+.sfield label{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:7px}
+.sfield label small{color:var(--dim)}
+.sactions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.test-out{margin-top:16px;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.test-out .ok{color:var(--ok)}
+.test-out .bad{color:var(--danger)}
+.howto{margin:26px 0 0;padding:0 0 0 20px;color:var(--muted);font-size:13.5px;line-height:1.8}
+details.sql{margin-top:20px;border:1px solid var(--line-soft);border-radius:16px;overflow:hidden}
+details.sql summary{padding:14px 18px;cursor:pointer;font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-size:12px;line-height:1.55;background:rgba(0,0,0,.35);color:#d8e3dc;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+/* ─── Toasts ─── */
+#toasts{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:90;display:flex;flex-direction:column;gap:8px;align-items:center;width:min(560px,calc(100% - 24px));pointer-events:none}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:12px;padding:12px 16px 12px 18px;border-radius:999px;font-size:14px;background:rgba(18,26,21,.88);
+  -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--line);box-shadow:0 20px 40px -20px #000;animation:pop .3s var(--ease)}
+.toast.error{border-color:rgba(255,123,114,.6);border-radius:18px}
+.toast.ok i{background:var(--ok)}
+.toast.error i{background:var(--danger)}
+.toast i{width:8px;height:8px;border-radius:50%;background:var(--paper);flex:none}
+.toast span{flex:1}
+
+.skel{background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.12),rgba(255,255,255,.05));background-size:200% 100%;animation:sh 1.3s linear infinite;border-radius:14px}
+@keyframes sh{to{background-position:-200% 0}}
+
+/* ─── Responsive ─── */
+@media (max-width:1180px){
+  .d-body{grid-template-columns:220px minmax(0,1fr)}
+  .record{grid-column:1 / -1;position:static}
+}
+@media (max-width:960px){
+  .results{grid-template-columns:1fr}
+  .stats-hero,.stats-grid{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  body{font-size:14px}
+  .topbar{padding:10px 14px;gap:10px}
+  .brand span{font-size:16px}
+  .sync span{display:none}
+  .tabs{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));margin:0;z-index:45;justify-content:space-around;padding:6px;border-radius:999px;
+    background:rgba(12,18,14,.78);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--line)}
+  .tab{flex:1;justify-content:center;flex-direction:column;gap:1px;height:52px;font-size:11px;padding:0 6px;position:relative}
+  .tab em{position:absolute;top:4px;right:calc(50% - 26px);min-width:17px;height:17px;font-size:10px}
+  main{padding:14px 14px 110px}
+  #toasts{bottom:calc(90px + env(safe-area-inset-bottom))}
+  .searchbar{flex-wrap:wrap;border-radius:26px;padding:8px 8px 8px 16px;margin-bottom:18px}
+  .searchbar .seg{width:100%;display:grid;grid-template-columns:repeat(3,1fr)}
+  .searchbar .kbd{display:none}
+  .hero{min-height:0}
+  .hero .display{padding-top:40px}
+  .hero-foot{grid-template-columns:1fr auto;gap:10px}
+  .hero-foot>:last-child{display:none}
+  .rcard{grid-template-columns:96px 1fr;gap:12px;padding:10px}
+  .rinfo h3{font-size:16px}
+  .rinfo .ov{-webkit-line-clamp:2}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:20px 12px}
+  .modal-root{padding:0}
+  .modal{border-radius:0;min-height:100%;border:0}
+  .d-body{grid-template-columns:1fr;padding:70px 16px 120px;gap:20px}
+  .d-poster{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:end}
+  .d-score{margin:0}
+  .d-hero{height:260px}
+  .stars.lg{--s:40px}
+  .kpi b{font-size:28px}
+  .rbars{height:160px;gap:4px}
+  .gbar{grid-template-columns:78px 1fr 30px}
+}
+</style>
+</head>
+<body>
+
+<div id="ambient" aria-hidden="true"><div class="bd" id="bdA"></div><div class="bd" id="bdB"></div><div class="shade"></div><div class="grain"></div></div>
+
+<header class="topbar">
+  <a class="brand" href="#search" data-action="nav" data-view="search" aria-label="MY CINEMA 홈">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 2.5v19M3.8 7.25l16.4 9.5M3.8 16.75l16.4-9.5"/></svg>
+    <span><span class="l">MY </span><b>CINEMA</b></span>
+  </a>
+  <nav class="tabs" aria-label="주요 메뉴">
+    <button class="tab" data-action="nav" data-view="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>검색</span></button>
+    <button class="tab" data-action="nav" data-view="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="10" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="10" rx="1.5"/><path d="M3.5 18h17M3.5 21h11"/></svg><span>내 목록</span><em id="cntLib">0</em></button>
+    <button class="tab" data-action="nav" data-view="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>내 영화관</span></button>
+  </nav>
+  <div class="top-right">
+    <div class="sync" id="sync" title="Supabase 연결 상태"><i></i><span>연결 확인 중</span></div>
+    <button class="icon-btn" data-action="settings" aria-label="설정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </div>
+</header>
+
+<div class="notice" id="notice"></div>
+
+<main>
+  <!-- 검색 -->
+  <section id="view-search" data-view-section="search">
+    <form class="searchbar glass" id="searchForm" role="search" autocomplete="off">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="영화·드라마 제목 검색 (한국어 제목, 원제 모두 가능)" enterkeyhint="search" aria-label="작품 검색">
+      <span class="kbd">/</span>
+      <button type="button" class="clear" data-action="clear-search" aria-label="검색어 지우기" hidden>×</button>
+      <div class="seg" id="searchType" role="group" aria-label="검색 대상">
+        <button type="button" data-action="stype" data-v="all" class="on">전체</button>
+        <button type="button" data-action="stype" data-v="movie">영화</button>
+        <button type="button" data-action="stype" data-v="tv">드라마</button>
+      </div>
+    </form>
+    <div id="searchBody"></div>
+  </section>
+
+  <!-- 내 목록 -->
+  <section id="view-library" data-view-section="library" hidden>
+    <div class="lib-head">
+      <h1 class="display"><span class="l">MY</span><b>COLLECTION</b></h1>
+      <p id="libSummary"></p>
+    </div>
+    <div class="toolbar glass">
+      <label class="lq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="libQ" type="search" placeholder="내 목록에서 찾기 (제목·감독·배우)"></label>
+      <div class="seg" data-filter="type"><button data-action="lf" data-k="type" data-v="all" class="on">전체</button><button data-action="lf" data-k="type" data-v="movie">영화</button><button data-action="lf" data-k="type" data-v="tv">드라마</button></div>
+      <div class="seg" data-filter="status"><button data-action="lf" data-k="status" data-v="all" class="on">전체</button><button data-action="lf" data-k="status" data-v="watched">본 작품</button><button data-action="lf" data-k="status" data-v="want">보고 싶은</button></div>
+      <select class="select" id="fGenre" aria-label="장르"><option value="">모든 장르</option></select>
+      <select class="select" id="fRating" aria-label="별점"></select>
+      <button class="chip" data-action="lf-toggle" data-k="liked"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg>좋아요</button>
+      <button class="chip" data-action="lf-toggle" data-k="favorite"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.6l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.4 6.1 20.7l1.3-6.6L2.5 9.5l6.6-.8z"/></svg>즐겨찾기</button>
+      <span class="sep"></span>
+      <select class="select" id="fSort" aria-label="정렬">
+        <option value="recent">최신 감상순</option>
+        <option value="added">최근 추가순</option>
+        <option value="title">제목순</option>
+        <option value="rating">별점순</option>
+        <option value="release">개봉일순</option>
+      </select>
+    </div>
+    <div class="active-filters" id="activeFilters" hidden></div>
+    <div id="libBody"></div>
+  </section>
+
+  <!-- 내 영화관 -->
+  <section id="view-stats" data-view-section="stats" hidden>
+    <div id="statsBody"></div>
+  </section>
+</main>
+
+<!-- 상세 모달 -->
+<div class="modal-root" id="detailRoot" hidden>
+  <div class="modal-scrim" data-action="close-detail"></div>
+  <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+    <button class="icon-btn modal-close" data-action="close-detail" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <div class="d-hero" id="dHero"></div>
+    <div class="d-body">
+      <aside class="d-poster" id="dPoster"></aside>
+      <div id="dInfo"></div>
+      <section class="record glass" id="dRecord" aria-label="내 감상 기록"></section>
+    </div>
+  </div>
+</div>
+
+<!-- 설정 모달 -->
+<div class="modal-root" id="settingsRoot" hidden>
+  <div class="modal-scrim" data-action="close-settings"></div>
+  <div class="modal glass settings" role="dialog" aria-modal="true" aria-label="설정">
+    <button class="icon-btn modal-close" data-action="close-settings" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <span class="pill">연결 설정</span>
+    <h2 class="display"><span class="l">CONNECT</span><b>YOUR KEYS</b></h2>
+    <p class="lead">파일 상단 CONFIG에 키를 넣어두는 방식을 권장합니다. 여기서 입력한 값은 CONFIG가 비어 있을 때만 쓰이며, 이 브라우저에만 저장됩니다.</p>
+    <p class="warn">Anon 키와 아래 SQL의 정책은 “키를 가진 사람은 누구나 읽고 쓸 수 있는” 개인용 구성입니다. 이 HTML을 공개하지 마세요.</p>
+
+    <div class="sfield"><label for="sTmdb">TMDB API Key 또는 읽기 액세스 토큰 <small id="srcTmdb"></small></label><input class="input" id="sTmdb" type="password" placeholder="v3 API 키 또는 eyJ… 토큰" autocomplete="off"></div>
+    <div class="sfield"><label for="sUrl">Supabase URL <small id="srcUrl"></small></label><input class="input" id="sUrl" type="url" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off"></div>
+    <div class="sfield"><label for="sKey">Supabase Anon Key <small id="srcKey"></small></label><input class="input" id="sKey" type="password" placeholder="eyJ… 또는 sb_publishable_…" autocomplete="off"></div>
+
+    <div class="sactions">
+      <button class="btn primary" data-action="settings-save">저장하고 연결 테스트</button>
+      <button class="btn" data-action="settings-reset">브라우저 저장값 지우기</button>
+    </div>
+    <div class="test-out" id="testOut"></div>
+
+    <ol class="howto">
+      <li>TMDB에 로그인 → 설정 → API에서 키를 발급받습니다.</li>
+      <li>Supabase 프로젝트를 만들고 SQL Editor에서 아래 SQL을 한 번 실행합니다.</li>
+      <li>Project Settings → API에서 Project URL과 anon(public) 키를 복사해 입력합니다.</li>
+    </ol>
+    <details class="sql">
+      <summary>Supabase 테이블 생성 SQL <button class="btn sm" data-action="copy-sql" type="button">SQL 복사</button></summary>
+      <pre id="sqlPre"></pre>
+    </details>
+  </div>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+
+<script type="text/plain" id="schemaSql">-- MY CINEMA · Supabase 스키마 (SQL Editor에서 한 번 실행)
+-- titles  : TMDB에서 가져온 작품 기본정보 캐시 (TMDB ID 기준)
+-- entries : 내 목록 + 개인 감상 기록
+
+create table if not exists public.titles (
+  id                text primary key,                 -- 'movie:27205' / 'tv:1396'
+  tmdb_id           bigint not null,
+  media_type        text not null check (media_type in ('movie','tv')),
+  title             text,
+  original_title    text,
+  original_language text,
+  release_date      text,                             -- 영화 개봉일 / 드라마 첫 방영일
+  end_date          text,                             -- 드라마 마지막 방영일
+  poster_path       text,
+  backdrop_path     text,
+  genres            jsonb not null default '[]'::jsonb,
+  countries         jsonb not null default '[]'::jsonb,
+  runtime           int,
+  seasons           int,
+  episodes          int,
+  directors         jsonb not null default '[]'::jsonb,
+  cast_members      jsonb not null default '[]'::jsonb,
+  overview          text,
+  tagline           text,
+  status_text       text,
+  vote_average      numeric,
+  vote_count        int,
+  fetched_at        timestamptz not null default now(),
+  unique (tmdb_id, media_type)
+);
+
+create table if not exists public.entries (
+  title_id    text primary key references public.titles(id) on delete cascade,
+  status      text not null default 'watched' check (status in ('watched','want')),
+  rating      numeric(2,1) check (rating is null or (rating >= 0.5 and rating <= 5 and rating * 2 = floor(rating * 2))),
+  watched_on  date,
+  review      text,
+  liked       boolean not null default false,
+  favorite    boolean not null default false,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+create index if not exists entries_updated_idx on public.entries (updated_at desc);
+
+alter table public.titles  enable row level security;
+alter table public.entries enable row level security;
+
+drop policy if exists "personal_titles_all"  on public.titles;
+drop policy if exists "personal_entries_all" on public.entries;
+create policy "personal_titles_all"  on public.titles  for all to anon, authenticated using (true) with check (true);
+create policy "personal_entries_all" on public.entries for all to anon, authenticated using (true) with check (true);
+
+grant select, insert, update, delete on public.titles, public.entries to anon, authenticated;
+</script>
+
+<script>
+(() => {
+'use strict';
+
+/* ════════════ 유틸 ════════════ */
+const C = window.CONFIG || {};
+const LANG = C.LANGUAGE || 'ko-KR';
+const LS_KEY = 'mycinema.settings.v1';
+const CACHE_MS = (Number(C.CACHE_DAYS) || 30) * 864e5;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const IMG = (p, size = 'w342') => p ? `https://image.tmdb.org/t/p/${size}${p}` : '';
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const yearOf = d => (d && /^\d{4}/.test(d)) ? d.slice(0, 4) : '';
+const fmtDate = d => d ? String(d).slice(0, 10).replace(/-/g, '.') : '';
+const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const typeLabel = t => t === 'tv' ? '드라마' : '영화';
+const statusLabel = s => s === 'want' ? '보고 싶은 작품' : '본 작품';
+
+const regionDN = (() => { try { return new Intl.DisplayNames(['ko'], { type: 'region' }); } catch { return null; } })();
+const langDN = (() => { try { return new Intl.DisplayNames(['ko'], { type: 'language' }); } catch { return null; } })();
+const regionName = c => { if (!c) return ''; try { return regionDN ? regionDN.of(c) : c; } catch { return c; } };
+const langName = c => { if (!c || c === 'xx') return ''; try { return langDN ? langDN.of(c) : c; } catch { return c; } };
+
+class AppError extends Error { constructor(msg, kind = 'general') { super(msg); this.kind = kind; } }
+
+const ICON = {
+  star: '<svg viewBox="0 0 24 24"><path d="M12 2.6l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.4 6.1 20.7l1.3-6.6L2.5 9.5l6.6-.8z"/></svg>',
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
+  heartFill: '<svg viewBox="0 0 24 24" fill="#ff6a26"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
+  starLine: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.6l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.4 6.1 20.7l1.3-6.6L2.5 9.5l6.6-.8z"/></svg>',
+  starFill: '<svg viewBox="0 0 24 24" fill="#ffd166"><path d="M12 2.6l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.4 6.1 20.7l1.3-6.6L2.5 9.5l6.6-.8z"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  asterisk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 2.5v19M3.8 7.25l16.4 9.5M3.8 16.75l16.4-9.5"/></svg>',
+  arrow: '<svg viewBox="0 0 26 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M0 6h24M19 1l5 5-5 5"/></svg>',
+  chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 6 6 6-6 6"/></svg>',
+  film: '<svg class="big" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4M3 12h18"/></svg>'
+};
+
+/* ════════════ 설정 ════════════ */
+function readLocal() { try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}') || {}; } catch { return {}; } }
+function cfg() {
+  const ls = readLocal();
+  return {
+    tmdb: String(C.TMDB_API_KEY || ls.tmdb || '').trim(),
+    sbUrl: String(C.SUPABASE_URL || ls.sbUrl || '').trim().replace(/\/+$/, ''),
+    sbKey: String(C.SUPABASE_ANON_KEY || ls.sbKey || '').trim()
+  };
+}
+const tmdbReady = () => !!cfg().tmdb;
+const sbReady = () => { const c = cfg(); return !!(c.sbUrl && c.sbKey); };
+
+/* ════════════ TMDB API ════════════ */
+async function tmdb(path, params = {}) {
+  const key = cfg().tmdb;
+  if (!key) throw new AppError('TMDB API Key가 없습니다. 설정에서 입력하세요.', 'config');
+  const url = new URL('https://api.themoviedb.org/3' + path);
+  const bearer = key.startsWith('eyJ');
+  if (!bearer) url.searchParams.set('api_key', key);
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
+  const headers = { accept: 'application/json' };
+  if (bearer) headers.Authorization = 'Bearer ' + key;
+  let res;
+  try { res = await fetch(url, { headers }); }
+  catch { throw new AppError('TMDB 서버에 연결하지 못했습니다. 인터넷 연결을 확인하세요.', 'network'); }
+  if (!res.ok) {
+    let msg = ''; try { msg = (await res.json()).status_message || ''; } catch {}
+    if (res.status === 401) throw new AppError('TMDB API Key가 올바르지 않습니다. 설정에서 키를 확인하세요.', 'auth');
+    if (res.status === 404) throw new AppError('TMDB에서 이 작품을 찾을 수 없습니다.', 'notfound');
+    if (res.status === 429) throw new AppError('TMDB 요청이 너무 많습니다. 잠시 후 다시 시도하세요.', 'rate');
+    throw new AppError(`TMDB 오류 (${res.status}) ${msg}`.trim());
+  }
+  return res.json();
+}
+
+/* ════════════ Supabase REST ════════════ */
+async function sb(path, { method = 'GET', body, prefer } = {}) {
+  const c = cfg();
+  if (!c.sbUrl || !c.sbKey) throw new AppError('Supabase URL과 Anon Key가 없습니다. 설정에서 입력하세요.', 'config');
+  const headers = { apikey: c.sbKey, 'Content-Type': 'application/json', Accept: 'application/json' };
+  if (c.sbKey.startsWith('eyJ')) headers.Authorization = 'Bearer ' + c.sbKey;
+  if (prefer) headers.Prefer = prefer;
+  let res;
+  try { res = await fetch(`${c.sbUrl}/rest/v1/${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined }); }
+  catch { throw new AppError('Supabase에 연결하지 못했습니다. URL과 인터넷 연결을 확인하세요.', 'network'); }
+  const text = await res.text();
+  let data = null; if (text) { try { data = JSON.parse(text); } catch { data = text; } }
+  if (!res.ok) {
+    const code = data && data.code || '';
+    const m = (data && (data.message || data.msg || data.error)) || res.statusText;
+    if (code === 'PGRST205' || code === '42P01' || /Could not find the table|does not exist/i.test(m))
+      throw new AppError('Supabase에 테이블이 없습니다. 설정의 SQL을 SQL Editor에서 실행하세요.', 'schema');
+    if (code === 'PGRST204' || /column/i.test(m) && /schema cache|not find/i.test(m))
+      throw new AppError('Supabase 테이블 구조가 다릅니다. 설정의 최신 SQL로 테이블을 다시 만드세요.', 'schema');
+    if (res.status === 401 || res.status === 403 || code === '42501' || /row-level security|JWT|api key/i.test(m))
+      throw new AppError('Supabase 권한 오류입니다. Anon Key와 RLS 정책(설정의 SQL)을 확인하세요.', 'auth');
+    throw new AppError(`Supabase 저장 오류 (${res.status}): ${m}`);
+  }
+  return data;
+}
+
+/* ════════════ 상태 ════════════ */
+const state = {
+  view: 'search',
+  lib: { status: 'idle', error: null },
+  byId: new Map(),          // title_id → entry row + .title
+  genres: { movie: {}, tv: {} },
+  seeds: new Map(),         // 검색·트렌딩 결과 (모달 즉시 표시용)
+  trending: { status: 'idle', items: [] },
+  search: { q: '', type: 'all', page: 0, totalPages: 0, totalResults: 0, results: [], status: 'idle', error: null, token: 0, more: false },
+  filters: { q: '', type: 'all', status: 'all', genre: '', rating: '', liked: false, favorite: false, sort: 'recent' },
+  detail: null,
+  ambientPath: ''
+};
+
+/* ════════════ 데이터 변환 ════════════ */
+const TITLE_COLS = ['id', 'tmdb_id', 'media_type', 'title', 'original_title', 'original_language', 'release_date', 'end_date', 'poster_path', 'backdrop_path', 'genres', 'countries', 'runtime', 'seasons', 'episodes', 'directors', 'cast_members', 'overview', 'tagline', 'status_text', 'vote_average', 'vote_count', 'fetched_at'];
+const pickTitle = t => Object.fromEntries(TITLE_COLS.map(k => [k, t[k] === undefined ? null : t[k]]));
+const hasFull = t => !!(t && t.fetched_at && Array.isArray(t.cast_members) && Array.isArray(t.directors));
+
+function normResult(r, type) {
+  const t = {
+    id: `${type}:${r.id}`, tmdb_id: r.id, media_type: type,
+    title: r.title || r.name || r.original_title || r.original_name || '제목 없음',
+    original_title: r.original_title || r.original_name || '',
+    original_language: r.original_language || '',
+    release_date: r.release_date || r.first_air_date || '',
+    poster_path: r.poster_path || null, backdrop_path: r.backdrop_path || null,
+    genres: (r.genre_ids || []).map(g => state.genres[type][g]).filter(Boolean),
+    countries: r.origin_country || [],
+    overview: r.overview || '', vote_average: r.vote_average, vote_count: r.vote_count
+  };
+  state.seeds.set(t.id, t);
+  return t;
+}
+
+function toTitleRow(d, type) {
+  const movie = type === 'movie';
+  const credits = d.credits || {};
+  const person = p => ({ id: p.id, name: p.name, profile_path: p.profile_path || null });
+  const directors = movie
+    ? (credits.crew || []).filter(c => c.job === 'Director').map(person)
+    : (d.created_by || []).map(person);
+  const cast = (credits.cast || []).slice(0, 14).map(c => ({ ...person(c), character: c.character || '' }));
+  let countries = movie ? (d.production_countries || []).map(c => c.iso_3166_1) : (d.origin_country || []);
+  if (!countries.length && Array.isArray(d.origin_country)) countries = d.origin_country;
+  return {
+    id: `${type}:${d.id}`, tmdb_id: d.id, media_type: type,
+    title: (movie ? d.title : d.name) || d.original_title || d.original_name || '제목 없음',
+    original_title: (movie ? d.original_title : d.original_name) || '',
+    original_language: d.original_language || '',
+    release_date: (movie ? d.release_date : d.first_air_date) || null,
+    end_date: movie ? null : (d.last_air_date || null),
+    poster_path: d.poster_path || null, backdrop_path: d.backdrop_path || null,
+    genres: (d.genres || []).map(g => g.name),
+    countries,
+    runtime: movie ? (d.runtime || null) : ((d.episode_run_time && d.episode_run_time[0]) || (d.last_episode_to_air && d.last_episode_to_air.runtime) || null),
+    seasons: movie ? null : (d.number_of_seasons ?? null),
+    episodes: movie ? null : (d.number_of_episodes ?? null),
+    directors, cast_members: cast,
+    overview: d.overview || '', tagline: d.tagline || '', status_text: d.status || '',
+    vote_average: d.vote_average ?? null, vote_count: d.vote_count ?? null,
+    fetched_at: new Date().toISOString()
+  };
+}
+
+async function fetchTitle(type, id) {
+  const d = await tmdb(`/${type}/${id}`, { language: LANG, append_to_response: 'credits' });
+  if (!d.overview && LANG !== 'en-US') {
+    try { const en = await tmdb(`/${type}/${id}`, { language: 'en-US' }); d.overview = en.overview; d.tagline = d.tagline || en.tagline; } catch {}
+  }
+  return toTitleRow(d, type);
+}
+
+async function cacheTitle(t) {
+  if (!sbReady()) return;
+  await sb('titles?on_conflict=id', { method: 'POST', body: [pickTitle(t)], prefer: 'resolution=merge-duplicates,return=minimal' });
+}
+
+async function loadGenres() {
+  if (!tmdbReady()) return;
+  try {
+    const [m, t] = await Promise.all([tmdb('/genre/movie/list', { language: LANG }), tmdb('/genre/tv/list', { language: LANG })]);
+    (m.genres || []).forEach(g => state.genres.movie[g.id] = g.name);
+    (t.genres || []).forEach(g => state.genres.tv[g.id] = g.name);
+  } catch { /* 장르 이름이 없어도 검색은 동작 */ }
+}
+
+/* ════════════ 내 목록 로드 ════════════ */
+async function loadLibrary() {
+  if (!sbReady()) { state.lib.status = 'noconfig'; renderAll(); return; }
+  state.lib.status = 'loading'; renderAll();
+  try {
+    const rows = await sb('entries?select=*,title:titles(*)&order=updated_at.desc');
+    state.byId = new Map();
+    (rows || []).forEach(r => { if (r.title) { r.rating = r.rating == null ? null : Number(r.rating); state.byId.set(r.title_id, r); } });
+    state.lib.status = 'ready'; state.lib.error = null;
+  } catch (e) { state.lib.status = 'error'; state.lib.error = e; }
+  renderAll(); pickAmbient();
+}
+
+/* ════════════ 렌더 공통 ════════════ */
+function starsHTML(v, cls = '') {
+  let s = '';
+  for (let i = 0; i < 5; i++) {
+    const w = clamp((Number(v) || 0) - i, 0, 1) * 100;
+    s += `<span class="st">${ICON.star}<span class="f" style="width:${w}%">${ICON.star}</span></span>`;
+  }
+  return `<span class="stars ${cls}" aria-hidden="true">${s}</span>`;
+}
+function setStars(el, v) { $$('.st .f', el).forEach((f, i) => f.style.width = clamp((Number(v) || 0) - i, 0, 1) * 100 + '%'); }
+
+function posterHTML(t, size = 'w342') {
+  const src = IMG(t.poster_path, size);
+  const fallback = `<div class="noimg">${ICON.asterisk}<span>${esc(t.title)}</span></div>`;
+  return `<div class="poster">${src ? `<img src="${src}" alt="${esc(t.title)} 포스터" loading="lazy" onerror="this.outerHTML=this.nextElementSibling.innerHTML" ><template>${fallback}</template>` : fallback}</div>`;
+}
+
+function pcardHTML(t, entry) {
+  const saved = entry || state.byId.get(t.id);
+  const country = (t.countries && t.countries[0]) ? regionName(t.countries[0]) : langName(t.original_language);
+  const sub = [yearOf(t.release_date) || '연도 미상', typeLabel(t.media_type), country].filter(Boolean).join(' / ');
+  let rate = '';
+  if (saved) {
+    rate = saved.rating ? `${starsHTML(saved.rating)}<b>${saved.rating.toFixed(1)}</b>` : `<span>${saved.status === 'want' ? '보고 싶은 작품' : '별점 없음'}</span>`;
+  } else if (t.vote_average) {
+    rate = `<span>TMDB ${Number(t.vote_average).toFixed(1)}</span>`;
+  }
+  return `<article class="pcard" data-action="open" data-id="${esc(t.id)}" tabindex="0" role="button" aria-label="${esc(t.title)} 상세 보기">
+    <div class="poster-wrap" style="position:relative">
+      ${posterHTML(t)}
+      <div class="pc-top">
+        <span class="pill xs">${typeLabel(t.media_type)}</span>
+        ${saved ? `<span class="pc-icons">${saved.liked ? `<span title="좋아요">${ICON.heartFill}</span>` : ''}${saved.favorite ? `<span title="즐겨찾기">${ICON.starFill}</span>` : ''}</span>` : ''}
+      </div>
+      ${saved && saved.status === 'want' ? '<span class="pill xs pc-want">보고 싶어요</span>' : ''}
+      ${saved && !entry ? `<span class="pc-saved" title="내 목록에 있음">${ICON.check}</span>` : ''}
+    </div>
+    <h3>${esc(t.title)}</h3>
+    <p class="sub">${esc(sub)}</p>
+    <div class="rate">${rate}</div>
+  </article>`;
+}
+
+function emptyHTML(titleL, titleB, text, btn) {
+  return `<div class="empty glass">${ICON.film}<h3><span class="l">${titleL} </span><b>${titleB}</b></h3><p>${text}</p>${btn || ''}</div>`;
+}
+
+/* ════════════ 알림 / 상태 ════════════ */
+function renderNotice() {
+  const n = $('#notice'); const msgs = [];
+  if (!tmdbReady()) msgs.push(['TMDB API Key가 없어 검색할 수 없습니다. 파일 상단 CONFIG 또는 설정에서 입력하세요.', 'settings', '설정 열기']);
+  if (!sbReady()) msgs.push(['Supabase가 연결되지 않아 내 목록을 저장할 수 없습니다.', 'settings', '설정 열기']);
+  else if (state.lib.status === 'error') msgs.push([state.lib.error.message, state.lib.error.kind === 'schema' || state.lib.error.kind === 'auth' ? 'settings' : 'reload-lib', state.lib.error.kind === 'schema' || state.lib.error.kind === 'auth' ? 'SQL·설정 보기' : '다시 불러오기']);
+  n.innerHTML = msgs.map(([m, a, b]) => `<div class="glass err" style="margin-bottom:8px"><p>${esc(m)}</p><button class="btn sm" data-action="${a}">${b}</button></div>`).join('');
+  const s = $('#sync');
+  s.className = 'sync ' + (state.lib.status === 'ready' ? 'ok' : (state.lib.status === 'error' || state.lib.status === 'noconfig') ? 'err' : '');
+  $('span', s).textContent = { ready: 'Supabase 동기화됨', error: '저장소 오류', noconfig: '저장소 미연결', loading: '불러오는 중', idle: '연결 확인 중' }[state.lib.status];
+  $('#cntLib').textContent = state.byId.size;
+}
+
+function toast(msg, type = 'info', ms) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = `<i></i><span>${esc(msg)}</span>`;
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 320); }, ms || (type === 'error' ? 6000 : 3000));
+}
+
+/* ════════════ 배경 ════════════ */
+let bdFlip = false, bdCurrent = null;
+function setAmbient(path) {
+  const url = path ? IMG(path, 'w780') : '';
+  if (url === bdCurrent) return;
+  bdCurrent = url;
+  const a = $('#bdA'), b = $('#bdB');
+  if (!url) { a.classList.remove('on'); b.classList.remove('on'); return; }
+  const img = new Image();
+  img.onload = () => {
+    if (bdCurrent !== url) return;
+    const [on, off] = bdFlip ? [a, b] : [b, a]; bdFlip = !bdFlip;
+    on.style.backgroundImage = `url("${url}")`; on.classList.add('on'); off.classList.remove('on');
+  };
+  img.src = url;
+}
+function pickAmbient() {
+  const list = [...state.byId.values()].filter(e => e.title.backdrop_path);
+  const pref = list.filter(e => e.favorite || e.liked);
+  const pool = pref.length ? pref : list;
+  state.ambientPath = pool.length ? pool[Math.floor(Math.random() * pool.length)].title.backdrop_path : '';
+  if (!state.detail) setAmbient(state.ambientPath);
+}
+
+/* ════════════ 화면 전환 ════════════ */
+function setView(v, { push = true } = {}) {
+  if (!['search', 'library', 'stats'].includes(v)) v = 'search';
+  state.view = v;
+  $$('[data-view-section]').forEach(s => s.hidden = s.dataset.viewSection !== v);
+  $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === v));
+  if (push && location.hash !== '#' + v) history.pushState(null, '', '#' + v);
+  renderView();
+  window.scrollTo({ top: 0 });
+}
+function renderView() {
+  if (state.view === 'search') renderSearch();
+  else if (state.view === 'library') renderLibrary();
+  else renderStats();
+}
+function renderAll() { renderNotice(); renderView(); }
+
+/* ════════════ 검색 ════════════ */
+async function runSearch(q, page = 1) {
+  q = (q || '').trim();
+  const s = state.search;
+  const token = ++s.token;
+  s.q = q;
+  $('[data-action="clear-search"]').hidden = !q;
+  if (!q) { s.status = 'idle'; s.results = []; renderSearch(); return; }
+  if (!tmdbReady()) { s.status = 'error'; s.error = new AppError('TMDB API Key가 없습니다. 설정에서 입력하세요.', 'config'); renderSearch(); return; }
+  if (page === 1) { s.status = 'loading'; s.results = []; renderSearch(); } else { s.more = true; renderSearch(); }
+  const path = s.type === 'movie' ? '/search/movie' : s.type === 'tv' ? '/search/tv' : '/search/multi';
+  try {
+    const data = await tmdb(path, { query: q, language: LANG, page, include_adult: C.INCLUDE_ADULT ? 'true' : 'false' });
+    if (token !== s.token) return;
+    const items = (data.results || [])
+      .filter(r => s.type !== 'all' || r.media_type === 'movie' || r.media_type === 'tv')
+      .map(r => normResult(r, s.type === 'all' ? r.media_type : s.type));
+    const seen = new Set(s.results.map(r => r.id));
+    s.results = page === 1 ? items : s.results.concat(items.filter(r => !seen.has(r.id)));
+    s.page = data.page || page; s.totalPages = data.total_pages || 0; s.totalResults = data.total_results || 0;
+    s.status = s.results.length ? 'ready' : 'empty';
+  } catch (e) {
+    if (token !== s.token) return;
+    if (page === 1) { s.status = 'error'; s.error = e; } else toast(e.message, 'error');
+  }
+  s.more = false;
+  renderSearch();
+}
+
+async function loadTrending() {
+  if (!tmdbReady() || state.trending.status === 'loading') return;
+  state.trending.status = 'loading';
+  try {
+    const d = await tmdb('/trending/all/week', { language: LANG });
+    state.trending.items = (d.results || []).filter(r => r.media_type === 'movie' || r.media_type === 'tv').slice(0, 18).map(r => normResult(r, r.media_type));
+    state.trending.status = 'ready';
+  } catch (e) { state.trending.status = 'error'; state.trending.error = e; }
+  if (state.view === 'search' && !state.search.q) renderSearch();
+}
+
+function renderSearch() {
+  const s = state.search, body = $('#searchBody');
+  if (!s.q) { body.innerHTML = searchIdleHTML(); return; }
+  if (s.status === 'loading') {
+    body.innerHTML = `<div class="results-head"><h2><span class="l">검색 중 </span><b>“${esc(s.q)}”</b></h2></div><div class="results">${Array.from({ length: 6 }, () => '<div class="skel" style="height:220px;border-radius:24px"></div>').join('')}</div>`;
+    return;
+  }
+  if (s.status === 'error') {
+    body.innerHTML = emptyHTML('검색하지', '못했습니다', esc(s.error.message),
+      s.error.kind === 'config' || s.error.kind === 'auth' ? '<button class="btn primary" data-action="settings">설정 열기</button>' : '<button class="btn primary" data-action="retry-search">다시 검색</button>');
+    return;
+  }
+  if (s.status === 'empty') {
+    const more = s.page < s.totalPages ? '<button class="btn" data-action="more">다음 결과 보기</button>' : '';
+    body.innerHTML = emptyHTML('검색 결과가', '없습니다', `“${esc(s.q)}”와 일치하는 ${s.type === 'movie' ? '영화' : s.type === 'tv' ? '드라마' : '영화·드라마'}가 없습니다. 띄어쓰기를 바꾸거나 원제로 검색해 보세요.`, more);
+    return;
+  }
+  const titleCount = {};
+  s.results.forEach(r => { const k = r.title.replace(/\s+/g, '').toLowerCase(); titleCount[k] = (titleCount[k] || 0) + 1; });
+  body.innerHTML = `
+    <div class="results-head">
+      <h2><span class="l">“${esc(s.q)}” </span><b>${s.results.length}편</b></h2>
+      <p style="margin:0;color:var(--dim);font-size:13px">같은 제목은 연도와 포스터로 구분하세요</p>
+    </div>
+    <div class="results">${s.results.map(r => rcardHTML(r, titleCount[r.title.replace(/\s+/g, '').toLowerCase()])).join('')}</div>
+    ${s.page < s.totalPages ? `<div class="more-wrap"><button class="btn" data-action="more" ${s.more ? 'disabled' : ''}>${s.more ? '<span class="spin"></span> 불러오는 중' : '결과 더 보기'}</button></div>` : ''}`;
+}
+
+function rcardHTML(r, dupCount) {
+  const saved = state.byId.get(r.id);
+  const place = r.countries && r.countries.length ? r.countries.map(regionName).join(', ') : (langName(r.original_language) ? `원어 ${langName(r.original_language)}` : '');
+  const meta = [r.release_date ? `${r.media_type === 'tv' ? '첫 방영' : '개봉'} ${fmtDate(r.release_date)}` : '공개일 미정', place, r.genres.join(', ')].filter(Boolean);
+  return `<article class="rcard glass" data-action="open" data-id="${esc(r.id)}" tabindex="0" role="button" aria-label="${esc(r.title)} 상세 보기">
+    ${posterHTML(r)}
+    <div class="rinfo">
+      <div class="rtags">
+        <span class="pill xs">${typeLabel(r.media_type)}</span>
+        ${dupCount > 1 ? `<span class="pill xs hot">같은 제목 ${dupCount}편</span>` : ''}
+        ${saved ? `<span class="pill xs on">내 목록 · ${statusLabel(saved.status)}</span>` : ''}
+      </div>
+      <h3>${esc(r.title)}<span class="yr">${yearOf(r.release_date) || '연도 미상'}</span></h3>
+      ${r.original_title && r.original_title !== r.title ? `<p class="orig">${esc(r.original_title)}</p>` : ''}
+      <p class="meta">${meta.map(esc).join('<br>')}</p>
+      <p class="ov">${esc(r.overview || '등록된 줄거리가 없습니다.')}</p>
+      <div class="ractions">
+        ${saved
+          ? `<button class="btn sm" data-action="open">내 기록 보기</button>`
+          : `<button class="btn sm primary" data-action="quick" data-status="watched">봤어요</button><button class="btn sm" data-action="quick" data-status="want">보고 싶어요</button>`}
+        ${r.vote_average ? `<span class="tmdb">TMDB <b>${Number(r.vote_average).toFixed(1)}</b></span>` : ''}
+      </div>
+    </div>
+  </article>`;
+}
+
+function searchIdleHTML() {
+  const entries = [...state.byId.values()];
+  const recent = entries.slice().sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at))).slice(0, 14);
+  const watched = entries.filter(e => e.status === 'watched').length;
+  let html = `
+  <section class="hero glass">
+    <div class="hero-top">
+      <span class="pill">TMDB 영화 · 드라마</span>
+      <span class="hero-star">${ICON.asterisk}</span>
+    </div>
+    <h1 class="display"><span class="l">KEEP</span><b>EVERY STORY</b><span class="l">YOU HAVE</span><b>WATCHED</b></h1>
+    <p class="hero-note">${ICON.arrow}<span>위 검색창에 제목을 입력하세요.<br>본 작품과 보고 싶은 작품을 한곳에 기록합니다.</span></p>
+    <div class="hero-foot">
+      <span>내 목록 ${state.byId.size}편 · 본 작품 ${watched}편</span>
+      <button class="circle-go" data-action="nav" data-view="library" aria-label="내 목록으로">${ICON.chev}</button>
+      <span>${state.lib.status === 'ready' ? 'Supabase에 저장 중' : 'Supabase 연결 필요'}</span>
+    </div>
+  </section>`;
+  if (recent.length) {
+    html += `<div class="row-head"><h2><span class="l">최근 </span><b>기록한 작품</b></h2><button class="linkbtn" data-action="nav" data-view="library">전체 보기</button></div>
+    <div class="strip">${recent.map(e => pcardHTML(e.title, e)).join('')}</div>`;
+  }
+  if (state.trending.status === 'ready' && state.trending.items.length) {
+    html += `<div class="row-head"><h2><span class="l">이번 주 </span><b>인기 작품</b></h2><p>TMDB 트렌딩</p></div>
+    <div class="strip">${state.trending.items.map(t => pcardHTML(t)).join('')}</div>`;
+  } else if (state.trending.status === 'loading') {
+    html += `<div class="strip">${Array.from({ length: 8 }, () => '<div class="skel" style="aspect-ratio:2/3"></div>').join('')}</div>`;
+  }
+  return html;
+}
+
+/* ════════════ 빠른 추가 ════════════ */
+async function quickAdd(id, status, btn) {
+  if (state.byId.has(id)) { toast('이미 내 목록에 있는 작품입니다.'); openDetail(id); return; }
+  if (!sbReady()) { toast('Supabase를 먼저 연결하세요.', 'error'); openSettings(); return; }
+  const [type, tid] = id.split(':');
+  const card = btn.closest('.ractions'); $$('button', card).forEach(b => b.disabled = true);
+  btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const t = await fetchTitle(type, tid);
+    await cacheTitle(t);
+    const now = new Date().toISOString();
+    const rows = await sb('entries?on_conflict=title_id', {
+      method: 'POST', prefer: 'resolution=merge-duplicates,return=representation',
+      body: [{ title_id: id, status, updated_at: now }]
+    });
+    const row = { ...rows[0], rating: rows[0].rating == null ? null : Number(rows[0].rating), title: t };
+    state.byId.set(id, row);
+    toast(`‘${t.title}’을(를) ${statusLabel(status)}에 저장했습니다.`, 'ok');
+    renderAll();
+  } catch (e) {
+    toast(e.message, 'error');
+    renderView();
+  }
+}
+
+/* ════════════ 상세 ════════════ */
+function draftFrom(entry) {
+  return {
+    status: entry ? entry.status : 'watched',
+    rating: entry && entry.rating ? Number(entry.rating) : null,
+    watched_on: entry && entry.watched_on ? String(entry.watched_on).slice(0, 10) : '',
+    review: entry && entry.review || '',
+    liked: !!(entry && entry.liked),
+    favorite: !!(entry && entry.favorite)
+  };
+}
+const isDirty = () => { const d = state.detail; return !!d && JSON.stringify(d.draft) !== JSON.stringify(d.base); };
+
+async function openDetail(id) {
+  const [type, tid] = id.split(':');
+  if (!type || !tid) return;
+  const saved = state.byId.get(id);
+  const seed = saved ? saved.title : state.seeds.get(id);
+  const token = Date.now() + Math.random();
+  const base = draftFrom(saved);
+  state.detail = { token, id, type, tmdbId: tid, data: seed || null, loading: true, error: null, base, draft: { ...base }, saving: false };
+  $('#detailRoot').hidden = false; document.body.classList.add('lock');
+  $('#detailRoot').scrollTop = 0;
+  renderDetailInfo(); renderRecord();
+  setAmbient(seed && seed.backdrop_path);
+  setTimeout(() => $('#detailRoot .modal-close').focus({ preventScroll: true }), 30);
+
+  const d = state.detail;
+  let full = hasFull(seed) ? seed : null;
+  if (!full && sbReady()) {
+    try { const rows = await sb(`titles?id=eq.${encodeURIComponent(id)}&select=*`); if (rows && rows[0] && hasFull(rows[0])) full = rows[0]; } catch {}
+  }
+  if (state.detail !== d) return;
+  if (full) { d.data = full; d.loading = false; renderDetailInfo(); setAmbient(full.backdrop_path); }
+  const stale = full && Date.now() - new Date(full.fetched_at).getTime() > CACHE_MS;
+  if (!full || stale) {
+    try {
+      const fresh = await fetchTitle(type, tid);
+      if (state.detail !== d) return;
+      d.data = fresh; d.loading = false; d.error = null;
+      if (saved) saved.title = fresh;
+      renderDetailInfo(); setAmbient(fresh.backdrop_path);
+      cacheTitle(fresh).catch(e => { if (e.kind === 'schema' || e.kind === 'auth') toast(e.message, 'error'); });
+    } catch (e) {
+      if (state.detail !== d) return;
+      d.loading = false;
+      if (!full) { d.error = e; renderDetailInfo(); } else toast('TMDB 최신 정보를 받지 못해 저장된 정보를 표시합니다.');
+    }
+  }
+}
+
+function closeDetail(force) {
+  if (!state.detail) return;
+  if (!force && isDirty() && !confirm('저장하지 않은 감상 기록이 있습니다. 닫을까요?')) return;
+  state.detail = null;
+  $('#detailRoot').hidden = true; document.body.classList.remove('lock');
+  setAmbient(state.ambientPath);
+}
+
+function renderDetailInfo() {
+  const d = state.detail; if (!d) return;
+  const t = d.data || {};
+  const movie = d.type === 'movie';
+  const bd = IMG(t.backdrop_path, 'w1280');
+  $('#dHero').style.setProperty('--bd', bd ? `url("${bd}")` : 'none');
+
+  $('#dPoster').innerHTML = `${t.title ? posterHTML(t, 'w500') : '<div class="poster skel"></div>'}
+    <div class="d-score"><span>TMDB 평점</span><b>${t.vote_average ? Number(t.vote_average).toFixed(1) : '–'}<small style="font-size:12px;color:var(--dim)"> / 10</small></b></div>`;
+
+  if (d.error && !t.title) {
+    $('#dInfo').innerHTML = `<div class="errbox"><p>${esc(d.error.message)}</p><button class="btn sm" data-action="detail-retry">다시 시도</button></div>`;
+    return;
+  }
+  const saved = state.byId.get(d.id);
+  const facts = [];
+  if (t.release_date || d.loading) facts.push([movie ? '개봉일' : '방영', t.release_date ? (movie ? fmtDate(t.release_date) : `${fmtDate(t.release_date)}${t.end_date && t.end_date !== t.release_date ? ` ~ ${fmtDate(t.end_date)}` : ''}${t.status_text ? ` (${tvStatus(t.status_text)})` : ''}`) : '…']);
+  if (t.countries && t.countries.length) facts.push(['국가', t.countries.map(regionName).join(', ')]);
+  if (t.original_language && langName(t.original_language)) facts.push(['원어', langName(t.original_language)]);
+  if (t.genres && t.genres.length) facts.push(['장르', t.genres.join(', ')]);
+  if (movie && t.runtime) facts.push(['러닝타임', `${t.runtime}분 (${Math.floor(t.runtime / 60)}시간 ${t.runtime % 60}분)`]);
+  if (!movie && (t.seasons || t.episodes)) facts.push(['에피소드', [t.seasons ? `시즌 ${t.seasons}개` : '', t.episodes ? `총 ${t.episodes}화` : '', t.runtime ? `회당 약 ${t.runtime}분` : ''].filter(Boolean).join(', ')]);
+  if (t.directors && t.directors.length) facts.push([movie ? '감독' : '크리에이터', t.directors.map(p => p.name).join(', ')]);
+  if (t.vote_count) facts.push(['TMDB 평가', `${Number(t.vote_average).toFixed(1)}점, ${Number(t.vote_count).toLocaleString('ko-KR')}명 참여`]);
+
+  const cast = (t.cast_members || []).slice(0, 14);
+  $('#dInfo').innerHTML = `
+    <div class="d-tags">
+      <span class="pill">${movie ? '영화' : '드라마'}</span>
+      ${t.release_date ? `<span class="pill">${yearOf(t.release_date)}</span>` : ''}
+      ${saved ? `<span class="pill on">내 목록 · ${statusLabel(saved.status)}</span>` : ''}
+    </div>
+    <h2 class="d-title" id="dTitle">${esc(t.title || '불러오는 중')}</h2>
+    ${t.original_title && t.original_title !== t.title ? `<p class="d-orig">${esc(t.original_title)}</p>` : ''}
+    ${t.tagline ? `<p class="d-tagline">${esc(t.tagline)}</p>` : ''}
+    ${d.loading ? '<div class="loading-line"><span class="spin"></span>작품 정보를 불러오는 중</div>' : ''}
+    ${facts.length ? `<dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
+    <h4 class="sec">줄거리</h4>
+    <p class="overview">${esc(t.overview || (d.loading ? '…' : '등록된 줄거리가 없습니다.'))}</p>
+    ${cast.length ? `<h4 class="sec">주요 출연진</h4>
+    <div class="cast">${cast.map(p => `<figure>
+      <div class="face">${p.profile_path ? `<img src="${IMG(p.profile_path, 'w185')}" alt="" loading="lazy">` : esc((p.name || '?').slice(0, 1))}</div>
+      <figcaption><b>${esc(p.name)}</b><span>${esc(p.character || '')}</span></figcaption></figure>`).join('')}</div>` : ''}
+    ${!d.loading && hasFull(t) ? `<p style="margin-top:22px"><button class="linkbtn" data-action="detail-refresh">TMDB에서 정보 새로고침</button> <span style="font-size:12px;color:var(--dim)">마지막 갱신 ${fmtDate(t.fetched_at)}</span></p>` : ''}`;
+}
+const tvStatus = s => ({ 'Returning Series': '방영 중', 'Ended': '종영', 'Canceled': '취소', 'In Production': '제작 중', 'Planned': '예정', 'Pilot': '파일럿', 'Released': '개봉', 'Post Production': '후반 작업' }[s] || s);
+
+function renderRecord() {
+  const d = state.detail; if (!d) return;
+  const saved = state.byId.get(d.id);
+  const box = $('#dRecord');
+  box.innerHTML = `
+    <div class="rec-head"><h3><span class="l">내 </span><b>감상 기록</b></h3><span class="rec-state" id="recState"></span></div>
+    <div class="field" style="margin-top:0">
+      <div class="seg status-seg" id="recStatus" role="group" aria-label="상태">
+        <button data-action="rec-status" data-v="watched">본 작품</button>
+        <button data-action="rec-status" data-v="want">보고 싶은 작품</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="lbl"><span>별점</span><button class="linkbtn" data-action="rec-clear-rating">별점 지우기</button></div>
+      <div class="rate-row">
+        <div id="recStars" role="slider" tabindex="0" aria-label="별점" aria-valuemin="0.5" aria-valuemax="5">${starsHTML(d.draft.rating, 'lg')}</div>
+        <span class="rate-num" id="recNum"></span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="recDate"><span>감상일</span><button class="linkbtn" data-action="rec-today" type="button">오늘</button></label>
+      <input class="input" type="date" id="recDate" max="${todayISO()}">
+    </div>
+    <div class="field">
+      <label for="recReview">리뷰</label>
+      <textarea class="textarea" id="recReview" maxlength="4000" placeholder="기억하고 싶은 장면, 느낀 점을 적어두세요."></textarea>
+      <div class="count"><span id="recCount">0</span> / 4000</div>
+    </div>
+    <div class="toggles">
+      <button class="toggle" data-action="rec-like" id="recLike" aria-pressed="false">${ICON.heart}좋아요</button>
+      <button class="toggle" data-action="rec-fav" id="recFav" aria-pressed="false">${ICON.starLine}즐겨찾기</button>
+    </div>
+    <div class="rec-actions">
+      <button class="btn primary" data-action="rec-save" id="recSave"></button>
+      ${saved ? '<button class="btn danger" data-action="rec-remove">내 목록에서 삭제</button>' : ''}
+    </div>
+    ${saved ? `<p class="rec-meta">처음 추가 ${fmtDate(saved.created_at)} · 마지막 수정 ${fmtDate(saved.updated_at)}</p>` : ''}`;
+  $('#recDate').value = d.draft.watched_on;
+  $('#recReview').value = d.draft.review;
+
+  const stars = $('#recStars');
+  const valFromEvent = e => { const r = $('.stars', stars).getBoundingClientRect(); return clamp(Math.ceil(((e.clientX - r.left) / r.width) * 10) / 2, 0.5, 5); };
+  stars.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { const v = valFromEvent(e); setStars(stars, v); $('#recNum').textContent = v.toFixed(1); } });
+  stars.addEventListener('pointerleave', syncRecord);
+  stars.addEventListener('click', e => { const v = valFromEvent(e); d.draft.rating = d.draft.rating === v ? null : v; syncRecord(); });
+  stars.addEventListener('keydown', e => {
+    const cur = d.draft.rating || 0;
+    if (['ArrowRight', 'ArrowUp'].includes(e.key)) { d.draft.rating = clamp(cur + .5, .5, 5); }
+    else if (['ArrowLeft', 'ArrowDown'].includes(e.key)) { d.draft.rating = cur <= .5 ? null : cur - .5; }
+    else if (e.key === 'Delete' || e.key === 'Backspace') { d.draft.rating = null; }
+    else return;
+    e.preventDefault(); syncRecord();
+  });
+  $('#recDate').addEventListener('input', e => { d.draft.watched_on = e.target.value; syncRecord(); });
+  $('#recReview').addEventListener('input', e => { d.draft.review = e.target.value; syncRecord(); });
+  syncRecord();
+}
+
+function syncRecord() {
+  const d = state.detail; if (!d) return;
+  const saved = state.byId.get(d.id), dirty = isDirty();
+  $$('#recStatus button').forEach(b => b.classList.toggle('on', b.dataset.v === d.draft.status));
+  setStars($('#recStars'), d.draft.rating);
+  $('#recStars').setAttribute('aria-valuenow', d.draft.rating || 0);
+  $('#recNum').textContent = d.draft.rating ? d.draft.rating.toFixed(1) : '–';
+  $('#recCount').textContent = d.draft.review.length;
+  const like = $('#recLike'), fav = $('#recFav');
+  like.classList.toggle('on', d.draft.liked); like.setAttribute('aria-pressed', d.draft.liked);
+  fav.classList.toggle('on', d.draft.favorite); fav.setAttribute('aria-pressed', d.draft.favorite);
+  const st = $('#recState');
+  st.className = 'rec-state ' + (dirty ? 'dirty' : saved ? 'saved' : '');
+  st.textContent = d.saving ? '저장 중…' : dirty && saved ? '변경사항 있음' : saved ? '저장됨' : '아직 목록에 없음';
+  const btn = $('#recSave');
+  btn.classList.toggle('dirty', dirty && !!saved);
+  btn.disabled = d.saving || (!!saved && !dirty) || !d.data;
+  btn.innerHTML = d.saving ? '<span class="spin"></span> 저장 중' : saved ? (dirty ? '변경사항 저장' : '저장됨') : '내 목록에 저장';
+}
+
+async function saveRecord() {
+  const d = state.detail; if (!d || d.saving) return;
+  if (!sbReady()) { toast('Supabase를 먼저 연결하세요.', 'error'); openSettings(); return; }
+  d.saving = true; syncRecord();
+  try {
+    if (!hasFull(d.data)) { d.data = await fetchTitle(d.type, d.tmdbId); renderDetailInfo(); }
+    await cacheTitle(d.data);
+    const r = d.draft;
+    const row = {
+      title_id: d.id, status: r.status, rating: r.rating, watched_on: r.watched_on || null,
+      review: r.review.trim() || null, liked: r.liked, favorite: r.favorite, updated_at: new Date().toISOString()
+    };
+    const rows = await sb('entries?on_conflict=title_id', { method: 'POST', body: [row], prefer: 'resolution=merge-duplicates,return=representation' });
+    const savedRow = { ...rows[0], rating: rows[0].rating == null ? null : Number(rows[0].rating), title: d.data };
+    const wasNew = !state.byId.has(d.id);
+    state.byId.set(d.id, savedRow);
+    if (state.detail !== d) { renderAll(); return; }
+    d.base = draftFrom(savedRow); d.draft = { ...d.base }; d.saving = false;
+    toast(wasNew ? `‘${d.data.title}’을(를) 내 목록에 저장했습니다.` : '감상 기록을 저장했습니다.', 'ok');
+    renderAll(); renderDetailInfo(); renderRecord();
+    if (wasNew && !state.ambientPath) pickAmbient();
+  } catch (e) {
+    d.saving = false; syncRecord();
+    toast(e.message, 'error');
+  }
+}
+
+async function removeRecord() {
+  const d = state.detail; if (!d) return;
+  const saved = state.byId.get(d.id); if (!saved) return;
+  if (!confirm(`‘${saved.title.title}’을(를) 내 목록에서 삭제할까요?\n별점과 리뷰도 함께 삭제됩니다.`)) return;
+  try {
+    await sb(`entries?title_id=eq.${encodeURIComponent(d.id)}`, { method: 'DELETE' });
+    state.byId.delete(d.id);
+    d.base = draftFrom(null); d.draft = { ...d.base };
+    toast('내 목록에서 삭제했습니다.', 'ok');
+    renderAll(); renderDetailInfo(); renderRecord();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ════════════ 내 목록 ════════════ */
+function matchesQuery(e, q) {
+  if (!q) return true;
+  const t = e.title;
+  const hay = [t.title, t.original_title, ...(t.directors || []).map(p => p.name), ...(t.cast_members || []).map(p => p.name), e.review].join(' ').toLowerCase().replace(/\s+/g, '');
+  return hay.includes(q.toLowerCase().replace(/\s+/g, ''));
+}
+function filteredEntries() {
+  const f = state.filters;
+  let arr = [...state.byId.values()].filter(e =>
+    (f.type === 'all' || e.title.media_type === f.type) &&
+    (f.status === 'all' || e.status === f.status) &&
+    (!f.genre || (e.title.genres || []).includes(f.genre)) &&
+    (!f.rating || (f.rating === 'none' ? !e.rating : Number(e.rating) === Number(f.rating))) &&
+    (!f.liked || e.liked) && (!f.favorite || e.favorite) &&
+    matchesQuery(e, f.q));
+  const ko = (a, b) => String(a.title.title).localeCompare(String(b.title.title), 'ko');
+  const watchKey = e => (e.watched_on ? String(e.watched_on).slice(0, 10) : String(e.updated_at || '').slice(0, 10)) + String(e.updated_at || '');
+  const sorters = {
+    recent: (a, b) => watchKey(b).localeCompare(watchKey(a)),
+    added: (a, b) => String(b.created_at).localeCompare(String(a.created_at)),
+    title: ko,
+    rating: (a, b) => (b.rating || 0) - (a.rating || 0) || ko(a, b),
+    release: (a, b) => String(b.title.release_date || '').localeCompare(String(a.title.release_date || '')) || ko(a, b)
+  };
+  return arr.sort(sorters[f.sort] || sorters.recent);
+}
+
+function syncToolbar() {
+  const f = state.filters;
+  $$('.toolbar .seg button').forEach(b => b.classList.toggle('on', f[b.dataset.k] === b.dataset.v));
+  $$('.toolbar [data-action="lf-toggle"]').forEach(b => b.classList.toggle('on', !!f[b.dataset.k]));
+  const genres = new Map();
+  state.byId.forEach(e => (e.title.genres || []).forEach(g => genres.set(g, (genres.get(g) || 0) + 1)));
+  const gSel = $('#fGenre');
+  gSel.innerHTML = '<option value="">모든 장르</option>' + [...genres.entries()].sort((a, b) => b[1] - a[1]).map(([g, n]) => `<option value="${esc(g)}">${esc(g)} (${n})</option>`).join('');
+  if (f.genre && !genres.has(f.genre)) gSel.insertAdjacentHTML('beforeend', `<option value="${esc(f.genre)}">${esc(f.genre)} (0)</option>`);
+  gSel.value = f.genre;
+  const rSel = $('#fRating');
+  rSel.innerHTML = '<option value="">모든 별점</option>' + [5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, .5].map(v => `<option value="${v}">★ ${v.toFixed(1)}</option>`).join('') + '<option value="none">별점 없음</option>';
+  rSel.value = f.rating;
+  $('#fSort').value = f.sort;
+  if ($('#libQ').value !== f.q) $('#libQ').value = f.q;
+}
+
+function renderLibrary() {
+  syncToolbar();
+  const body = $('#libBody');
+  const all = [...state.byId.values()];
+  const w = all.filter(e => e.status === 'watched').length;
+  $('#libSummary').textContent = `영화 ${all.filter(e => e.title.media_type === 'movie').length}편, 드라마 ${all.filter(e => e.title.media_type === 'tv').length}편 · 본 작품 ${w}편, 보고 싶은 작품 ${all.length - w}편`;
+
+  const f = state.filters, chips = [];
+  if (f.genre) chips.push(['genre', `장르: ${f.genre}`]);
+  if (f.rating) chips.push(['rating', f.rating === 'none' ? '별점 없음' : `별점 ${Number(f.rating).toFixed(1)}`]);
+  const af = $('#activeFilters');
+  const anyFilter = f.q || f.type !== 'all' || f.status !== 'all' || f.genre || f.rating || f.liked || f.favorite;
+  af.hidden = !anyFilter;
+  af.innerHTML = chips.map(([k, l]) => `<button class="pill xs on" data-action="lf-clear" data-k="${k}">${esc(l)} ×</button>`).join('') + (anyFilter ? '<button class="linkbtn" data-action="lf-reset">필터 모두 해제</button>' : '');
+
+  if (state.lib.status === 'loading' || state.lib.status === 'idle') {
+    body.innerHTML = `<div class="grid">${Array.from({ length: 12 }, () => '<div><div class="skel" style="aspect-ratio:2/3"></div><div class="skel" style="height:14px;margin-top:10px;width:70%"></div></div>').join('')}</div>`;
+    return;
+  }
+  if (state.lib.status === 'noconfig') { body.innerHTML = emptyHTML('저장소가', '연결되지 않았습니다', 'Supabase URL과 Anon Key를 입력하면 내 목록이 저장되고 다시 불러와집니다.', '<button class="btn primary" data-action="settings">설정 열기</button>'); return; }
+  if (state.lib.status === 'error') { body.innerHTML = emptyHTML('목록을', '불러오지 못했습니다', esc(state.lib.error.message), '<button class="btn primary" data-action="reload-lib">다시 불러오기</button> <button class="btn" data-action="settings">설정</button>'); return; }
+  if (!all.length) { body.innerHTML = emptyHTML('아직', '기록이 없습니다', '작품을 검색해서 본 작품이나 보고 싶은 작품으로 저장해 보세요.', '<button class="btn primary" data-action="nav" data-view="search">작품 검색하기</button>'); return; }
+
+  const list = filteredEntries();
+  if (!list.length) { body.innerHTML = emptyHTML('조건에 맞는', '작품이 없습니다', '필터를 줄이거나 다른 검색어를 입력해 보세요.', '<button class="btn primary" data-action="lf-reset">필터 모두 해제</button>'); return; }
+
+  if (f.sort === 'rating') {
+    const groups = new Map();
+    list.forEach(e => { const k = e.rating ? e.rating.toFixed(1) : 'none'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); });
+    body.innerHTML = [...groups.entries()].map(([k, arr]) => `
+      <div class="group-title">${k === 'none' ? '<b>별점 없음</b>' : `${starsHTML(Number(k), 'md')}<b>${k}</b>`}<span>${arr.length}편</span></div>
+      <div class="grid">${arr.map(e => pcardHTML(e.title, e)).join('')}</div>`).join('');
+  } else {
+    body.innerHTML = `<div class="grid">${list.map(e => pcardHTML(e.title, e)).join('')}</div>`;
+  }
+}
+
+/* ════════════ 내 영화관 ════════════ */
+function renderStats() {
+  const body = $('#statsBody');
+  if (state.lib.status !== 'ready') { renderLibraryStateInto(body); return; }
+  const all = [...state.byId.values()];
+  if (!all.length) { body.innerHTML = emptyHTML('나의 영화관이', '비어 있습니다', '작품을 기록하면 이곳에 별점과 장르 통계가 쌓입니다.', '<button class="btn primary" data-action="nav" data-view="search">작품 검색하기</button>'); return; }
+
+  const movies = all.filter(e => e.title.media_type === 'movie'), tvs = all.filter(e => e.title.media_type === 'tv');
+  const watched = all.filter(e => e.status === 'watched'), want = all.filter(e => e.status === 'want');
+  const rated = all.filter(e => e.rating);
+  const avg = rated.length ? rated.reduce((s, e) => s + e.rating, 0) / rated.length : 0;
+  const minutes = watched.reduce((s, e) => s + (e.title.media_type === 'movie' ? (e.title.runtime || 0) : 0), 0);
+  const cnt = (arr, st) => arr.filter(e => e.status === st).length;
+
+  const bins = [.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map(v => [v, all.filter(e => e.rating === v).length]);
+  const noneCount = all.length - rated.length;
+  const maxBin = Math.max(1, ...bins.map(b => b[1]), noneCount);
+
+  const gm = new Map();
+  all.forEach(e => (e.title.genres || []).forEach(g => {
+    const o = gm.get(g) || { n: 0, sum: 0, r: 0 }; o.n++; if (e.rating) { o.sum += e.rating; o.r++; } gm.set(g, o);
+  }));
+  const genres = [...gm.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 12);
+  const maxG = Math.max(1, ...genres.map(g => g[1].n));
+  const favs = all.filter(e => e.favorite).sort((a, b) => (b.rating || 0) - (a.rating || 0));
+
+  body.innerHTML = `
+  <div class="stats-hero">
+    <section class="glass big-count">
+      <div class="hero-top"><span class="pill">내 영화관</span><span class="hero-star">${ICON.asterisk}</span></div>
+      <div>
+        <div class="num">${all.length}<small>편</small></div>
+        <h1 class="display" style="font-size:clamp(26px,3vw,38px);margin-top:14px"><span class="l">STORIES</span><b>IN MY CINEMA</b></h1>
+      </div>
+      <div class="hero-foot" style="margin-top:24px">
+        <span>평균 별점 ${avg ? avg.toFixed(2) : '–'}</span>
+        <button class="circle-go" data-action="nav" data-view="library" aria-label="내 목록으로">${ICON.chev}</button>
+        <span>${minutes ? `영화 감상 ${Math.round(minutes / 60)}시간` : '감상 시간 집계 전'}</span>
+      </div>
+    </section>
+    <section class="glass">
+      <div class="kpis">
+        <button class="kpi" data-action="stat-filter" data-type="movie"><span>영화</span><b>${movies.length}</b></button>
+        <button class="kpi" data-action="stat-filter" data-type="tv"><span>드라마</span><b>${tvs.length}</b></button>
+        <button class="kpi" data-action="stat-filter" data-status="watched"><span>본 작품</span><b>${watched.length}</b></button>
+        <button class="kpi" data-action="stat-filter" data-status="want"><span>보고 싶은 작품</span><b>${want.length}</b></button>
+        <button class="kpi" data-action="stat-filter" data-liked="1"><span>좋아요</span><b>${all.filter(e => e.liked).length}</b></button>
+        <button class="kpi" data-action="stat-filter" data-favorite="1"><span>즐겨찾기</span><b>${favs.length}</b></button>
+      </div>
+    </section>
+  </div>
+
+  <div class="stats-grid">
+    <section class="glass">
+      <h2 class="panel-title"><span class="l">별점별 </span><b>정리</b></h2>
+      <p class="panel-sub">막대를 누르면 해당 별점의 작품만 봅니다 · 평가 ${rated.length}편</p>
+      <div class="rbars">
+        ${bins.map(([v, n]) => `<button class="rbar" data-action="stat-filter" data-rating="${v}" title="${v.toFixed(1)}점 ${n}편"><em>${n || ''}</em><span class="col" style="height:${(n / maxBin) * 100}%"></span><small>${v % 1 ? v.toFixed(1) : v}</small></button>`).join('')}
+        <button class="rbar none" data-action="stat-filter" data-rating="none" title="별점 없음 ${noneCount}편"><em>${noneCount || ''}</em><span class="col" style="height:${(noneCount / maxBin) * 100}%"></span><small>없음</small></button>
+      </div>
+    </section>
+    <section class="glass">
+      <h2 class="panel-title"><span class="l">장르별 </span><b>정리</b></h2>
+      <p class="panel-sub">많이 기록한 장르 순 · 오른쪽 숫자는 작품 수</p>
+      <div class="gbars">
+        ${genres.length ? genres.map(([g, o]) => `<button class="gbar" data-action="stat-filter" data-genre="${esc(g)}" title="${esc(g)} ${o.n}편${o.r ? `, 평균 ${(o.sum / o.r).toFixed(1)}점` : ''}"><span>${esc(g)}</span><span class="track"><i style="width:${(o.n / maxG) * 100}%"></i></span><b>${o.n}</b></button>`).join('') : '<p class="panel-sub">장르 정보가 없습니다.</p>'}
+      </div>
+    </section>
+    <section class="glass">
+      <h2 class="panel-title"><span class="l">유형과 </span><b>상태</b></h2>
+      <p class="panel-sub">숫자를 누르면 그 조합으로 목록을 엽니다</p>
+      <div class="matrix">
+        <span class="h"></span><span class="h">본 작품</span><span class="h">보고 싶은 작품</span>
+        <span>영화</span><button data-action="stat-filter" data-type="movie" data-status="watched">${cnt(movies, 'watched')}</button><button data-action="stat-filter" data-type="movie" data-status="want">${cnt(movies, 'want')}</button>
+        <span>드라마</span><button data-action="stat-filter" data-type="tv" data-status="watched">${cnt(tvs, 'watched')}</button><button data-action="stat-filter" data-type="tv" data-status="want">${cnt(tvs, 'want')}</button>
+      </div>
+    </section>
+    <section class="glass">
+      <h2 class="panel-title"><span class="l">즐겨찾기 </span><b>작품</b></h2>
+      <p class="panel-sub">${favs.length ? '별점 높은 순' : '상세 화면에서 즐겨찾기를 켜면 여기에 모입니다'}</p>
+      ${favs.length ? `<div class="strip" style="grid-auto-columns:118px;margin:0">${favs.slice(0, 20).map(e => pcardHTML(e.title, e)).join('')}</div>` : ''}
+    </section>
+  </div>`;
+}
+function renderLibraryStateInto(body) {
+  if (state.lib.status === 'noconfig') body.innerHTML = emptyHTML('저장소가', '연결되지 않았습니다', 'Supabase를 연결하면 내 영화관 통계를 볼 수 있습니다.', '<button class="btn primary" data-action="settings">설정 열기</button>');
+  else if (state.lib.status === 'error') body.innerHTML = emptyHTML('통계를', '불러오지 못했습니다', esc(state.lib.error.message), '<button class="btn primary" data-action="reload-lib">다시 불러오기</button>');
+  else body.innerHTML = `<div class="stats-hero"><div class="skel" style="height:360px;border-radius:30px"></div><div class="skel" style="height:360px;border-radius:30px"></div></div>`;
+}
+
+/* ════════════ 설정 모달 ════════════ */
+function openSettings() {
+  const ls = readLocal();
+  const setField = (id, srcId, confVal, lsVal) => {
+    const el = $(id); el.value = confVal ? '' : (lsVal || '');
+    el.disabled = !!confVal; el.placeholder = confVal ? 'CONFIG에 입력되어 있음' : el.dataset.ph || el.placeholder;
+    $(srcId).textContent = confVal ? 'CONFIG 사용 중' : lsVal ? '브라우저에 저장됨' : '비어 있음';
+  };
+  ['#sTmdb', '#sUrl', '#sKey'].forEach(id => { const el = $(id); if (!el.dataset.ph) el.dataset.ph = el.placeholder; });
+  setField('#sTmdb', '#srcTmdb', C.TMDB_API_KEY, ls.tmdb);
+  setField('#sUrl', '#srcUrl', C.SUPABASE_URL, ls.sbUrl);
+  setField('#sKey', '#srcKey', C.SUPABASE_ANON_KEY, ls.sbKey);
+  $('#testOut').innerHTML = '';
+  $('#settingsRoot').hidden = false; document.body.classList.add('lock');
+}
+function closeSettings() { $('#settingsRoot').hidden = true; if (!state.detail) document.body.classList.remove('lock'); }
+
+async function saveSettings() {
+  const ls = readLocal();
+  if (!C.TMDB_API_KEY) ls.tmdb = $('#sTmdb').value.trim();
+  if (!C.SUPABASE_URL) ls.sbUrl = $('#sUrl').value.trim();
+  if (!C.SUPABASE_ANON_KEY) ls.sbKey = $('#sKey').value.trim();
+  try { localStorage.setItem(LS_KEY, JSON.stringify(ls)); } catch { toast('브라우저 저장소를 쓸 수 없습니다. CONFIG에 직접 입력하세요.', 'error'); }
+  const out = $('#testOut');
+  out.innerHTML = '<div class="loading-line"><span class="spin"></span>연결을 확인하는 중</div>';
+  const lines = [];
+  try { await tmdb('/configuration'); lines.push(['ok', 'TMDB 연결 성공']); } catch (e) { lines.push(['bad', 'TMDB: ' + e.message]); }
+  try { await sb('titles?select=id&limit=1'); await sb('entries?select=title_id&limit=1'); lines.push(['ok', 'Supabase 연결 및 테이블 확인 성공']); } catch (e) { lines.push(['bad', 'Supabase: ' + e.message]); }
+  out.innerHTML = lines.map(([c, m]) => `<div class="${c}">${c === 'ok' ? '✓' : '✕'} ${esc(m)}</div>`).join('');
+  $('#srcTmdb').textContent = C.TMDB_API_KEY ? 'CONFIG 사용 중' : ls.tmdb ? '브라우저에 저장됨' : '비어 있음';
+  $('#srcUrl').textContent = C.SUPABASE_URL ? 'CONFIG 사용 중' : ls.sbUrl ? '브라우저에 저장됨' : '비어 있음';
+  $('#srcKey').textContent = C.SUPABASE_ANON_KEY ? 'CONFIG 사용 중' : ls.sbKey ? '브라우저에 저장됨' : '비어 있음';
+  await loadGenres();
+  if (state.trending.status !== 'ready') { state.trending.status = 'idle'; loadTrending(); }
+  loadLibrary();
+}
+
+/* ════════════ 이벤트 ════════════ */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]'); if (!el) return;
+  const a = el.dataset.action;
+  const idOf = () => el.dataset.id || (el.closest('[data-id]') && el.closest('[data-id]').dataset.id);
+  switch (a) {
+    case 'nav': e.preventDefault(); if (state.detail) closeDetail(true); setView(el.dataset.view); break;
+    case 'settings': openSettings(); break;
+    case 'close-settings': closeSettings(); break;
+    case 'settings-save': saveSettings(); break;
+    case 'settings-reset': try { localStorage.removeItem(LS_KEY); } catch {} toast('브라우저에 저장한 키를 지웠습니다.'); openSettings(); renderNotice(); break;
+    case 'copy-sql': {
+      e.preventDefault();
+      const sql = $('#schemaSql').textContent.trim();
+      (navigator.clipboard ? navigator.clipboard.writeText(sql) : Promise.reject()).then(() => toast('SQL을 복사했습니다.', 'ok')).catch(() => {
+        const r = document.createRange(); r.selectNodeContents($('#sqlPre')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('SQL을 선택했습니다. Ctrl+C로 복사하세요.');
+      });
+      break;
+    }
+    case 'reload-lib': loadLibrary(); break;
+    case 'stype':
+      state.search.type = el.dataset.v;
+      $$('#searchType button').forEach(b => b.classList.toggle('on', b === el));
+      if (state.search.q) runSearch(state.search.q);
+      break;
+    case 'clear-search': $('#q').value = ''; runSearch(''); $('#q').focus(); break;
+    case 'retry-search': runSearch($('#q').value); break;
+    case 'more': runSearch(state.search.q, state.search.page + 1); break;
+    case 'quick': e.stopPropagation(); quickAdd(idOf(), el.dataset.status, el); break;
+    case 'open': e.stopPropagation(); { const id = idOf(); if (id) openDetail(id); } break;
+    case 'close-detail': closeDetail(); break;
+    case 'detail-retry': { const d = state.detail; if (d) openDetail(d.id); } break;
+    case 'detail-refresh': {
+      const d = state.detail; if (!d) break;
+      d.loading = true; renderDetailInfo();
+      fetchTitle(d.type, d.tmdbId).then(t => {
+        if (state.detail !== d) return;
+        d.data = t; d.loading = false;
+        const s = state.byId.get(d.id); if (s) s.title = t;
+        renderDetailInfo(); renderView(); toast('TMDB 최신 정보로 갱신했습니다.', 'ok');
+        return cacheTitle(t);
+      }).catch(err => { d.loading = false; renderDetailInfo(); toast(err.message, 'error'); });
+      break;
+    }
+    case 'rec-status': {
+      const d = state.detail; d.draft.status = el.dataset.v;
+      if (el.dataset.v === 'watched' && !d.draft.watched_on && !state.byId.has(d.id)) { /* 날짜는 사용자가 직접 선택 */ }
+      syncRecord(); break;
+    }
+    case 'rec-clear-rating': state.detail.draft.rating = null; syncRecord(); break;
+    case 'rec-today': state.detail.draft.watched_on = todayISO(); $('#recDate').value = state.detail.draft.watched_on; syncRecord(); break;
+    case 'rec-like': state.detail.draft.liked = !state.detail.draft.liked; syncRecord(); break;
+    case 'rec-fav': state.detail.draft.favorite = !state.detail.draft.favorite; syncRecord(); break;
+    case 'rec-save': saveRecord(); break;
+    case 'rec-remove': removeRecord(); break;
+    case 'lf': state.filters[el.dataset.k] = el.dataset.v; renderLibrary(); break;
+    case 'lf-toggle': state.filters[el.dataset.k] = !state.filters[el.dataset.k]; renderLibrary(); break;
+    case 'lf-clear': state.filters[el.dataset.k] = ''; renderLibrary(); break;
+    case 'lf-reset': Object.assign(state.filters, { q: '', type: 'all', status: 'all', genre: '', rating: '', liked: false, favorite: false }); renderLibrary(); break;
+    case 'stat-filter':
+      Object.assign(state.filters, {
+        q: '', type: el.dataset.type || 'all', status: el.dataset.status || 'all', genre: el.dataset.genre || '',
+        rating: el.dataset.rating || '', liked: !!el.dataset.liked, favorite: !!el.dataset.favorite,
+        sort: el.dataset.rating ? 'recent' : state.filters.sort
+      });
+      setView('library');
+      break;
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (!$('#settingsRoot').hidden) closeSettings();
+    else if (state.detail) closeDetail();
+    return;
+  }
+  const tag = (e.target.tagName || '').toLowerCase();
+  const typing = ['input', 'textarea', 'select'].includes(tag) || e.target.isContentEditable;
+  if (e.key === '/' && !typing && !state.detail && $('#settingsRoot').hidden) {
+    e.preventDefault(); if (state.view !== 'search') setView('search'); $('#q').focus();
+  }
+  if ((e.key === 'Enter' || e.key === ' ') && !typing && e.target.matches('[role="button"][data-action="open"]')) {
+    e.preventDefault(); openDetail(e.target.dataset.id);
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === 's' && state.detail) { e.preventDefault(); saveRecord(); }
+});
+
+const debouncedSearch = debounce(v => runSearch(v), 450);
+$('#q').addEventListener('input', e => { $('[data-action="clear-search"]').hidden = !e.target.value; debouncedSearch(e.target.value); });
+$('#searchForm').addEventListener('submit', e => { e.preventDefault(); runSearch($('#q').value); $('#q').blur(); });
+
+const debouncedLib = debounce(() => renderLibrary(), 180);
+$('#libQ').addEventListener('input', e => { state.filters.q = e.target.value; debouncedLib(); });
+$('#fGenre').addEventListener('change', e => { state.filters.genre = e.target.value; renderLibrary(); });
+$('#fRating').addEventListener('change', e => { state.filters.rating = e.target.value; renderLibrary(); });
+$('#fSort').addEventListener('change', e => { state.filters.sort = e.target.value; renderLibrary(); });
+
+window.addEventListener('popstate', () => setView((location.hash || '#search').slice(1), { push: false }));
+window.addEventListener('beforeunload', e => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ════════════ 시작 ════════════ */
+$('#sqlPre').textContent = $('#schemaSql').textContent.trim();
+setView((location.hash || '#search').slice(1), { push: false });
+renderNotice();
+(async () => {
+  await loadGenres();
+  loadTrending();
+})();
+loadLibrary();
+if (!tmdbReady() && !sbReady()) setTimeout(openSettings, 400);
+
+})();
+</script>
+</body>
+</html>
