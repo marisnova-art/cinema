@@ -26,7 +26,8 @@ window.CONFIG = {
   SUPABASE_ANON_KEY: '',
   LANGUAGE: 'ko-KR',
   INCLUDE_ADULT: false,
-  CACHE_DAYS: 30          // DB에 저장된 TMDB 정보가 이 일수보다 오래되면 자동 갱신
+  CACHE_DAYS: 30,         // DB에 저장된 TMDB 정보가 이 일수보다 오래되면 자동 갱신
+  HERO_ROTATE_SECONDS: 30 // 메인 박스(평점 4.0 이상 작품)가 바뀌는 간격(초)
 };
 </script>
 
@@ -71,18 +72,21 @@ a{color:inherit}
 :focus-visible{outline:2px solid var(--bloom-soft);outline-offset:2px;border-radius:8px}
 [hidden]{display:none!important}
 
-/* ─── Ambient: 해상도에 독립적인 절차적 셰이더 배경 (여러 장면 랜덤) ─── */
-#ambient{position:fixed;inset:0;z-index:-1;overflow:hidden;background:#0a130e}
-#bgCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity 1.4s var(--ease)}
-#bgCanvas.ready{opacity:1}
-#ambient.nogl{background:
-  radial-gradient(60% 45% at 8% 6%, rgba(122,167,199,.45), transparent 70%),
-  radial-gradient(30% 24% at 68% 30%, rgba(255,106,38,.4), transparent 70%),
-  radial-gradient(70% 50% at 60% 100%, rgba(40,78,38,.65), transparent 70%),
+/* ─── Ambient: 메인 박스 작품 이미지를 블러 처리한 배경 ─── */
+#ambient{position:fixed;inset:0;z-index:-1;overflow:hidden;background:
+  radial-gradient(60% 45% at 8% 6%, rgba(122,167,199,.4), transparent 70%),
+  radial-gradient(30% 24% at 68% 30%, rgba(255,106,38,.32), transparent 70%),
+  radial-gradient(70% 50% at 60% 100%, rgba(40,78,38,.6), transparent 70%),
   linear-gradient(180deg,#0f1a17 0%,#0a130e 55%,#07100a 100%)}
-#ambient .grain{position:absolute;inset:0;opacity:.055;mix-blend-mode:overlay;pointer-events:none;
+#ambient .bg{position:absolute;inset:-14%;background-size:cover;background-position:center 30%;background-repeat:no-repeat;
+  filter:blur(60px) saturate(1.35);opacity:0;transform:scale(1.06);transition:opacity 1.8s var(--ease);will-change:opacity}
+#ambient .bg.on{opacity:1}
+#ambient .veil{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(130% 95% at 50% 0%, rgba(7,11,9,.3) 0%, rgba(7,11,9,.72) 72%, rgba(7,11,9,.88) 100%),
+             linear-gradient(180deg, rgba(7,11,9,.18) 0%, rgba(7,11,9,.62) 100%)}
+#ambient .grain{position:absolute;inset:0;opacity:.075;mix-blend-mode:overlay;pointer-events:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-@media (prefers-reduced-motion:reduce){#bgCanvas{transition:none}}
+@media (prefers-reduced-motion:reduce){#ambient .bg{transition:none}}
 
 /* ─── Glass ─── */
 .glass{
@@ -193,8 +197,14 @@ main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
 .hero-cap-txt small{font-size:10.5px;color:var(--bloom-soft);letter-spacing:.02em}
 .hero-cap-txt b{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hero-cap-txt em{font-style:normal;font-size:11px;color:var(--dim)}
-.hero-shuffle{width:34px;height:34px;background:rgba(8,12,10,.5)}
-.hero-shuffle svg{width:15px;height:15px}
+.hero-timer{position:relative;width:42px;height:42px;flex:none;border-radius:50%;display:grid;place-items:center;background:rgba(8,12,10,.5);transition:background .2s}
+.hero-timer:hover{background:rgba(8,12,10,.8)}
+.hero-timer svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.hero-timer .trk{fill:none;stroke:rgba(255,255,255,.18);stroke-width:2.4}
+.hero-timer .prog{fill:none;stroke:var(--bloom);stroke-width:2.4;stroke-linecap:round;stroke-dasharray:106.81;transition:stroke-dashoffset 1s linear}
+.hero-timer b{position:relative;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.hero-timer b small{font-size:9px;font-weight:500;margin-left:1px;color:var(--muted)}
+.hero-timer.single{display:none}
 .row-head{flex-wrap:wrap}
 .row-tools{display:flex;align-items:center;gap:12px}
 .seg.sm button{height:28px;padding:0 11px;font-size:12px}
@@ -505,7 +515,7 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
 </head>
 <body>
 
-<div id="ambient" aria-hidden="true"><canvas id="bgCanvas"></canvas><div class="grain"></div></div>
+<div id="ambient" aria-hidden="true"><div class="bg" id="bgA"></div><div class="bg" id="bgB"></div><div class="veil"></div><div class="grain"></div></div>
 
 <header class="topbar">
   <a class="brand" href="#search" data-action="nav" data-view="search" aria-label="MY CINEMA 홈">
@@ -519,7 +529,6 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
   </nav>
   <div class="top-right">
     <div class="sync" id="sync" title="Supabase 연결 상태"><i></i><span>연결 확인 중</span></div>
-    <button class="icon-btn" data-action="bg-next" id="bgBtn" aria-label="배경 바꾸기" title="배경 바꾸기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg></button>
     <button class="icon-btn" data-action="settings" aria-label="설정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </div>
 </header>
@@ -790,6 +799,7 @@ const RECENT_ORDER_KEY = 'mycinema.recentOrder';
 const state = {
   recentOrder: (() => { try { return localStorage.getItem(RECENT_ORDER_KEY) === 'asc' ? 'asc' : 'desc'; } catch { return 'desc'; } })(),
   heroId: null,
+  heroNextAt: 0,
   view: 'search',
   lib: { status: 'idle', error: null },
   byId: new Map(),          // title_id → entry row + .title
@@ -980,238 +990,26 @@ const restoreStrips = (root, m) => {
   requestAnimationFrame(() => updateStrips(root));
 };
 
-/* ════════════ 배경 엔진 (WebGL 절차적 장면 · 랜덤 · 크로스페이드) ════════════ */
-const Backdrop = (() => {
-  const NAMES = ['블룸 가든', '실크 오로라', '프로젝터 헤이즈', '더스크 메시', '코스틱 풀'];
-  const BG_KEY = 'mycinema.bg.last';
-  const amb = $('#ambient'), cv = $('#bgCanvas');
-  const reduce = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
-  let gl = null, U = {}, cur = 0, nxt = 0, mixStart = -1, raf = 0, last = 0, rotateTimer = 0;
-  const t0 = performance.now();
-  const seed = Math.random() * 40 + 3;
-
-  const VS = 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}';
-  const FS = `
-#ifdef GL_FRAGMENT_PRECISION_HIGH
-precision highp float;
-#else
-precision mediump float;
-#endif
-uniform vec2 uRes;
-uniform float uTime, uA, uB, uMix, uSeed;
-
-float h21(vec2 p){ p = fract(p*vec2(233.34, 851.73)); p += dot(p, p + 23.45); return fract(p.x*p.y); }
-float vnoise(vec2 p){
-  vec2 i = floor(p), f = fract(p), u = f*f*(3.-2.*f);
-  return mix(mix(h21(i), h21(i+vec2(1.,0.)), u.x), mix(h21(i+vec2(0.,1.)), h21(i+vec2(1.,1.)), u.x), u.y);
-}
-float fbm(vec2 p){
-  float v = 0., a = .5; mat2 m = mat2(1.6, 1.2, -1.2, 1.6);
-  for(int i=0;i<4;i++){ v += a*vnoise(p); p = m*p + vec2(7.1, 3.7); a *= .5; }
-  return v;
-}
-
-/* 0 · 블룸 가든 — 역광 정원 위 떠다니는 보케 */
-vec3 sBloom(vec2 p, float asp, float t){
-  vec3 col = mix(vec3(.012,.035,.024), vec3(.03,.07,.07), smoothstep(-.2, 1., p.y));
-  col += vec3(.28,.44,.56) * pow(max(0., 1. - length((p - vec2(-asp*.85, .95))*vec2(.7,1.))/1.3), 2.) * .9;
-  float gx = p.x*7. + vnoise(vec2(p.x*1.5, t*.08))*2.4 + sin(t*.2 + p.y*2.)*.15*(1. - p.y);
-  float blade = pow(abs(sin(gx + vnoise(vec2(p.x*3., p.y*.5))*3.)), 7.);
-  col += vec3(.05,.13,.06) * blade * smoothstep(.0, -1.1, p.y) * (.35 + .65*vnoise(vec2(p.x*4., 2.)));
-  col += vec3(.02,.06,.03) * fbm(vec2(p.x*2.5, p.y*1.2 - t*.01)) * smoothstep(.4, -1., p.y);
-  for(int i=0;i<16;i++){
-    float fi = float(i);
-    vec2 r1 = vec2(h21(vec2(fi, uSeed)), h21(vec2(uSeed*.37, fi + 3.1)));
-    vec2 c = vec2((r1.x*2.-1.)*asp*1.05, r1.y*2.2 - 1.1);
-    c += vec2(sin(t*.06 + fi*1.7), cos(t*.045 + fi*2.3)) * .07;
-    float depth = h21(vec2(fi*1.3, uSeed + 9.));
-    float rad = mix(.05, .34, depth);
-    float soft = mix(.015, .2, depth*depth);
-    float d = length(p - c);
-    float disc = smoothstep(rad, rad - soft, d);
-    float ring = smoothstep(rad - soft*.6, rad, d) * disc;
-    float warm = step(.42, h21(vec2(fi + .5, uSeed*1.9)));
-    vec3 oc = mix(vec3(.55,.72,.62), vec3(1.,.40,.10), warm);
-    col += oc * (disc*.7 + ring*.5) * mix(.5, .13, depth) * (.85 + .15*sin(t*.35 + fi*2.));
-  }
-  return col;
-}
-
-/* 1 · 실크 오로라 — 도메인 워프 비단 흐름 */
-vec3 sSilk(vec2 p, float t){
-  p *= .9;
-  vec2 q = vec2(fbm(p + vec2(0., t*.04)), fbm(p + vec2(5.2, 1.3) - t*.03));
-  vec2 r = vec2(fbm(p + 3.*q + vec2(1.7, 9.2) + t*.025), fbm(p + 3.*q + vec2(8.3, 2.8) - t*.02));
-  float f = fbm(p + 2.6*r);
-  vec3 col = mix(vec3(.006,.03,.04), vec3(.02,.3,.32), clamp(f*f*2.4, 0., 1.));
-  col = mix(col, vec3(1.,.48,.18), smoothstep(.75, 1.25, length(q)) * .55);
-  col = mix(col, vec3(.72,.86,.82), clamp(r.x*r.x - .2, 0., 1.) * .5);
-  col += vec3(.9,.75,.6) * pow(abs(sin((f*6. + r.y*3.)*3.14159)), 24.) * .12 * f;
-  return col * (.45 + .75*f);
-}
-
-/* 2 · 프로젝터 헤이즈 — 영사기 빛줄기와 먼지 */
-vec3 sProj(vec2 p, float asp, float t){
-  vec3 col = vec3(.012,.016,.02) + vec3(.02,.015,.01)*(1. - abs(p.y));
-  vec2 d = p - vec2(asp*.78, 1.25);
-  float ang = atan(d.x, -d.y);
-  float beam = smoothstep(.34, .02, abs(ang + .62));
-  float dist = length(d);
-  float haze = fbm(p*1.8 + vec2(t*.05, -t*.035));
-  float rays = .55 + .45*vnoise(vec2(ang*22. + 3., t*.25));
-  float flick = .93 + .07*vnoise(vec2(t*6., 1.));
-  col += vec3(1.,.80,.55) * beam * rays * (.25 + .75*haze) * exp(-dist*.55) * flick * .9;
-  col += vec3(1.,.9,.7) * exp(-dist*6.) * .8;
-  vec2 g = p*30. + vec2(sin(t*.07)*3., t*.6);
-  vec2 id = floor(g), fr = fract(g) - .5;
-  vec2 off = vec2(h21(id + 3.3), h21(id + 7.7)) - .5;
-  float mote = step(.955, h21(id + uSeed)) * smoothstep(.16, 0., length(fr - off*.6));
-  col += vec3(1.,.92,.78) * mote * beam * (.8 + .8*haze);
-  col += vec3(.22,.10,.04) * pow(max(0., 1. - length(p - vec2(-asp*.9, -1.))/1.6), 2.);
-  return col;
-}
-
-/* 3 · 더스크 메시 — 해질녘 메시 그라디언트 */
-vec3 sDusk(vec2 p, float asp, float t){
-  vec2 w = p + .18*vec2(fbm(p*1.3 + t*.03), fbm(p*1.3 - t*.025 + 4.)) - .09;
-  vec3 acc = vec3(0.); float ws = 0.;
-  for(int i=0;i<5;i++){
-    float fi = float(i);
-    vec2 c = vec2(sin(t*.05*(1. + fi*.13) + fi*2.4)*asp*.8, cos(t*.041*(1. + fi*.17) + fi*1.9)*.85);
-    vec3 k = vec3(.03,.05,.09);
-    if(i==0) k = vec3(.10,.07,.24);
-    else if(i==1) k = vec3(.42,.13,.28);
-    else if(i==2) k = vec3(.8,.32,.11);
-    else if(i==3) k = vec3(.10,.34,.42);
-    float dd = length(w - c);
-    float wt = pow(1./(dd*dd*2.2 + .06), 1.6);
-    acc += k*wt; ws += wt;
-  }
-  vec3 col = acc/ws;
-  col *= .75 + .35*smoothstep(1.2, -.4, p.y);
-  return col*.85;
-}
-
-/* 4 · 코스틱 풀 — 깊은 물속 빛 무늬 */
-vec3 sCaustic(vec2 p, float t){
-  vec2 q = p*1.25 + vec2(uSeed*.05);
-  float acc = 0.;
-  for(int i=0;i<2;i++){
-    float fi = float(i);
-    vec2 w = q*(1. + fi*.8) + vec2(fbm(q*1.1 + vec2(t*.05, fi*3.)), fbm(q*1.1 + vec2(4.3, fi - t*.04)))*1.5;
-    float n = vnoise(w*2.4 + t*.07) + .5*vnoise(w*4.8 - t*.05);
-    acc += pow(clamp(1. - abs(n - .75)*2.4, 0., 1.), 7.) * (1. - fi*.45);
-  }
-  vec3 col = mix(vec3(.004,.028,.05), vec3(.012,.13,.17), smoothstep(-1.1, 1., p.y));
-  col += vec3(.32,.72,.78) * acc * .55 * (.6 + .4*smoothstep(-1., .8, p.y));
-  col += vec3(.95,.55,.25) * pow(acc, 3.) * .06;
-  col += vec3(.2,.45,.5) * pow(max(0., 1. - length(p - vec2(.2, 1.3))/1.6), 2.) * .35;
-  return col;
-}
-
-vec3 scene(float s, vec2 p, float asp, float t){
-  if(s < .5) return sBloom(p, asp, t);
-  if(s < 1.5) return sSilk(p, t);
-  if(s < 2.5) return sProj(p, asp, t);
-  if(s < 3.5) return sDusk(p, asp, t);
-  return sCaustic(p, t);
-}
-
-void main(){
-  vec2 p = (gl_FragCoord.xy*2. - uRes)/uRes.y;
-  float asp = uRes.x/uRes.y;
-  vec3 col = scene(uA, p, asp, uTime);
-  if(uMix > .001) col = mix(col, scene(uB, p, asp, uTime), smoothstep(0., 1., uMix));
-  vec2 v = gl_FragCoord.xy/uRes - .5;
-  col *= 1. - dot(v, v)*.9;
-  col = 1. - exp(-col*1.25);
-  col += (h21(gl_FragCoord.xy + fract(uTime*7.)) - .5) * (2.5/255.);
-  gl_FragColor = vec4(col, 1.);
-}`;
-
-  function compile(type, src) {
-    const sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh);
-    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) { console.warn('배경 셰이더 오류:', gl.getShaderInfoLog(sh)); return null; }
-    return sh;
-  }
-  function init() {
-    try { gl = cv.getContext('webgl', { antialias: false, alpha: false, depth: false, stencil: false, powerPreference: 'low-power' }); } catch { gl = null; }
-    if (!gl) return false;
-    const v = compile(gl.VERTEX_SHADER, VS), f = compile(gl.FRAGMENT_SHADER, FS);
-    if (!v || !f) { gl = null; return false; }
-    const prog = gl.createProgram(); gl.attachShader(prog, v); gl.attachShader(prog, f); gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { gl = null; return false; }
-    gl.useProgram(prog);
-    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-    const loc = gl.getAttribLocation(prog, 'a'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    ['uRes', 'uTime', 'uA', 'uB', 'uMix', 'uSeed'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
-    return true;
-  }
-  function resize() {
-    if (!gl) return;
-    const mobile = innerWidth < 760;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    let w = innerWidth * dpr * (mobile ? .6 : .75), h = innerHeight * dpr * (mobile ? .6 : .75);
-    const k = Math.min(1, Math.sqrt((mobile ? 9e5 : 2.2e6) / (w * h)));
-    w = Math.max(2, Math.round(w * k)); h = Math.max(2, Math.round(h * k));
-    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
-    draw(performance.now());
-  }
-  function draw(now) {
-    const t = reduce.matches ? 0 : (now - t0) / 1000;
-    let m = 0;
-    if (mixStart >= 0) {
-      m = reduce.matches ? 1 : Math.min(1, (now - mixStart) / 2600);
-      if (m >= 1) { cur = nxt; mixStart = -1; m = 0; }
-    }
-    gl.uniform2f(U.uRes, cv.width, cv.height);
-    gl.uniform1f(U.uTime, t + seed);
-    gl.uniform1f(U.uA, cur); gl.uniform1f(U.uB, nxt); gl.uniform1f(U.uMix, m); gl.uniform1f(U.uSeed, seed);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-    cv.classList.add('ready');
-  }
-  function loop(now) {
-    raf = requestAnimationFrame(loop);
-    if (document.hidden) return;
-    const fps = innerWidth < 760 ? 24 : 30;
-    if (now - last < 1000 / fps - 2) return;
-    last = now; draw(now);
-  }
-  function start() {
-    if (!gl || raf) return;
-    if (reduce.matches) { draw(performance.now()); return; }
-    raf = requestAnimationFrame(loop);
-  }
-  function stop() { cancelAnimationFrame(raf); raf = 0; }
-  const pick = exclude => { let i; do { i = Math.floor(Math.random() * NAMES.length); } while (NAMES.length > 1 && i === exclude); return i; };
-  function go(i) {
-    if (mixStart >= 0) cur = nxt;
-    nxt = i; mixStart = performance.now();
-    if (reduce.matches) draw(performance.now());
-    try { localStorage.setItem(BG_KEY, String(i)); } catch {}
-    const btn = $('#bgBtn'); if (btn) btn.title = `배경 바꾸기 · 현재 ${NAMES[i]}`;
-    scheduleRotate();
-  }
-  function scheduleRotate() {
-    clearTimeout(rotateTimer);
-    rotateTimer = setTimeout(() => go(pick(mixStart >= 0 ? nxt : cur)), 75000);
-  }
-  function boot() {
-    if (!init()) { amb.classList.add('nogl'); const b = $('#bgBtn'); if (b) b.hidden = true; return; }
-    let prev = -1; try { const v = localStorage.getItem(BG_KEY); if (v !== null) prev = Number(v); } catch {}
-    cur = nxt = pick(prev);
-    try { localStorage.setItem(BG_KEY, String(cur)); } catch {}
-    const btn = $('#bgBtn'); if (btn) btn.title = `배경 바꾸기 · 현재 ${NAMES[cur]}`;
-    resize(); start(); scheduleRotate();
-    window.addEventListener('resize', debounce(resize, 150));
-    cv.addEventListener('webglcontextlost', e => { e.preventDefault(); stop(); });
-    cv.addEventListener('webglcontextrestored', () => { if (init()) { resize(); start(); } });
-    if (reduce.addEventListener) reduce.addEventListener('change', () => { stop(); start(); });
-  }
+/* ════════════ 배경 (메인 박스 작품 이미지 블러) ════════════ */
+const Ambient = (() => {
+  let current = null, flip = false;
   return {
-    boot,
-    shuffle() { if (!gl) return null; const i = pick(mixStart >= 0 ? nxt : cur); go(i); return NAMES[i]; }
+    set(path) {
+      const url = path ? IMG(path, 'w1280') : '';
+      if (url === current) return;
+      current = url;
+      const a = $('#bgA'), b = $('#bgB');
+      if (!url) { a.classList.remove('on'); b.classList.remove('on'); return; }
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = () => {
+        if (current !== url) return;
+        const [on, off] = flip ? [a, b] : [b, a]; flip = !flip;
+        on.style.backgroundImage = `url("${url}")`;
+        on.classList.add('on'); off.classList.remove('on');
+      };
+      img.src = url;
+    }
   };
 })();
 
@@ -1231,7 +1029,7 @@ function renderView() {
   else if (state.view === 'library') renderLibrary();
   else renderStats();
 }
-function renderAll() { renderNotice(); renderView(); }
+function renderAll() { syncHero(); renderNotice(); renderView(); }
 
 /* ════════════ 검색 ════════════ */
 async function runSearch(q, page = 1) {
@@ -1327,8 +1125,11 @@ function rcardHTML(r, dupCount) {
   </article>`;
 }
 
+const HERO_SEC = Math.max(5, Number(C.HERO_ROTATE_SECONDS) || 30);
+const RING_C = 2 * Math.PI * 17;
+const heroPool = () => [...state.byId.values()].filter(e => Number(e.rating) >= 4 && (e.title.backdrop_path || e.title.poster_path));
 function heroPick(force) {
-  const pool = [...state.byId.values()].filter(e => Number(e.rating) >= 4 && (e.title.backdrop_path || e.title.poster_path));
+  const pool = heroPool();
   if (!pool.length) { state.heroId = null; return null; }
   if (!force && state.heroId && pool.some(e => e.title_id === state.heroId)) return state.byId.get(state.heroId);
   const cand = force && pool.length > 1 ? pool.filter(e => e.title_id !== state.heroId) : pool;
@@ -1336,6 +1137,73 @@ function heroPick(force) {
   state.heroId = pick.title_id;
   return pick;
 }
+const heroImagePath = e => e ? (e.title.backdrop_path || e.title.poster_path) : null;
+function syncHero() {
+  const e = heroPick(false);
+  Ambient.set(heroImagePath(e));
+  if (!e) state.heroNextAt = 0;
+  else if (!state.heroNextAt) state.heroNextAt = Date.now() + HERO_SEC * 1000;
+}
+function heroArtImg(e) {
+  const t = e.title, bd = !!t.backdrop_path;
+  return `<img src="${IMG(bd ? t.backdrop_path : t.poster_path, bd ? 'w1280' : 'w780')}" alt="" decoding="async" onload="this.classList.add('ld')" onerror="this.remove()">`;
+}
+function heroCapMainHTML(e) {
+  const t = e.title;
+  return `<button class="hero-cap-main" data-action="open" data-id="${esc(e.title_id)}" aria-label="${esc(t.title)} 상세 보기">
+    <span class="hero-thumb">${t.poster_path ? `<img src="${IMG(t.poster_path, 'w154')}" alt="">` : ''}</span>
+    <span class="hero-cap-txt"><small>내 별점 ★ ${Number(e.rating).toFixed(1)}</small><b>${esc(t.title)}</b><em>${[yearOf(t.release_date), typeLabel(t.media_type)].filter(Boolean).join(' · ')}</em></span>
+  </button>`;
+}
+function heroTimerHTML() {
+  const left = heroSecondsLeft();
+  return `<button class="hero-timer${heroPool().length > 1 ? '' : ' single'}" data-action="hero-shuffle" id="heroTimer" aria-label="다음 작품까지 ${left}초, 누르면 바로 변경" title="${HERO_SEC}초마다 자동 변경 · 누르면 바로 다음 작품">
+    <svg viewBox="0 0 40 40" aria-hidden="true"><circle class="trk" cx="20" cy="20" r="17"/><circle class="prog" id="heroRing" cx="20" cy="20" r="17" style="stroke-dashoffset:${(RING_C * (1 - left / HERO_SEC)).toFixed(2)}"/></svg>
+    <b id="heroSec">${left}<small>s</small></b>
+  </button>`;
+}
+const heroSecondsLeft = () => state.heroNextAt ? clamp(Math.ceil((state.heroNextAt - Date.now()) / 1000), 0, HERO_SEC) : HERO_SEC;
+
+function rotateHero() {
+  const prev = state.heroId;
+  const e = heroPick(true);
+  state.heroNextAt = e ? Date.now() + HERO_SEC * 1000 : 0;
+  Ambient.set(heroImagePath(e));
+  if (!e) return;
+  const hero = $('#searchBody .hero');
+  if (hero && e.title_id !== prev) {
+    const art = hero.querySelector('.hero-art'), cap = hero.querySelector('.hero-cap-main');
+    if (!art || !cap) { if (state.view === 'search' && !state.search.q) renderSearch(); }
+    else {
+      art.classList.toggle('poster-only', !e.title.backdrop_path);
+      const holder = document.createElement('div'); holder.innerHTML = heroArtImg(e);
+      const img = holder.firstElementChild;
+      img.addEventListener('load', () => setTimeout(() => $$('img', art).forEach(x => { if (x !== img) x.remove(); }), 1000), { once: true });
+      art.appendChild(img);
+      cap.outerHTML = heroCapMainHTML(e);
+    }
+  }
+  const ring = $('#heroRing');
+  if (ring) { ring.style.transition = 'none'; ring.style.strokeDashoffset = '0'; void ring.getBoundingClientRect(); ring.style.transition = ''; }
+  tickHero();
+}
+function tickHero() {
+  if (!state.heroId) return;
+  const many = heroPool().length > 1;
+  const left = heroSecondsLeft();
+  if (left <= 0) {
+    if (many && !document.hidden) { rotateHero(); return; }
+    state.heroNextAt = Date.now() + HERO_SEC * 1000;
+  }
+  const btn = $('#heroTimer'); if (!btn) return;
+  btn.classList.toggle('single', !many);
+  const l = heroSecondsLeft();
+  $('#heroSec').innerHTML = `${l}<small>s</small>`;
+  $('#heroRing').style.strokeDashoffset = (RING_C * (1 - l / HERO_SEC)).toFixed(2);
+  btn.setAttribute('aria-label', `다음 작품까지 ${l}초, 누르면 바로 변경`);
+}
+setInterval(tickHero, 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) tickHero(); });
 
 function searchIdleHTML() {
   const entries = [...state.byId.values()];
@@ -1343,15 +1211,8 @@ function searchIdleHTML() {
   const hero = heroPick(false);
   let art = '', cap = '';
   if (hero) {
-    const t = hero.title, bd = !!t.backdrop_path;
-    art = `<div class="hero-art${bd ? '' : ' poster-only'}"><img src="${IMG(bd ? t.backdrop_path : t.poster_path, bd ? 'w1280' : 'w780')}" alt="" decoding="async" onload="this.classList.add('ld')" onerror="this.parentNode.remove()"></div><div class="hero-shade"></div>`;
-    cap = `<div class="hero-cap">
-      <button class="hero-cap-main" data-action="open" data-id="${esc(hero.title_id)}" aria-label="${esc(t.title)} 상세 보기">
-        <span class="hero-thumb">${t.poster_path ? `<img src="${IMG(t.poster_path, 'w154')}" alt="">` : ''}</span>
-        <span class="hero-cap-txt"><small>내 별점 ★ ${Number(hero.rating).toFixed(1)}</small><b>${esc(t.title)}</b><em>${[yearOf(t.release_date), typeLabel(t.media_type)].filter(Boolean).join(' · ')}</em></span>
-      </button>
-      <button class="icon-btn hero-shuffle" data-action="hero-shuffle" aria-label="다른 작품 보기" title="평점 4.0 이상 작품 중 다른 작품"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg></button>
-    </div>`;
+    art = `<div class="hero-art${hero.title.backdrop_path ? '' : ' poster-only'}">${heroArtImg(hero)}</div><div class="hero-shade"></div>`;
+    cap = `<div class="hero-cap">${heroCapMainHTML(hero)}${heroTimerHTML()}</div>`;
   }
   let html = `
   <section class="hero glass${hero ? ' has-art' : ''}">
@@ -1894,13 +1755,12 @@ document.addEventListener('click', e => {
       Object.assign(state.filters, { q: '', type: 'all', status: 'watched', genre: '', rating: '', liked: false, favorite: false, sort: state.recentOrder === 'asc' ? 'recent_asc' : 'recent' });
       setView('library');
       break;
-    case 'hero-shuffle': heroPick(true); renderSearch(); break;
+    case 'hero-shuffle': rotateHero(); break;
     case 'strip': {
       const el2 = el.parentElement.querySelector('.strip');
       el2.scrollBy({ left: Number(el.dataset.dir) * el2.clientWidth * .85, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
       break;
     }
-    case 'bg-next': { const n = Backdrop.shuffle(); toast(n ? `배경을 ‘${n}’(으)로 바꿉니다.` : '이 브라우저는 WebGL 배경을 지원하지 않습니다.'); break; }
     case 'stype':
       state.search.type = el.dataset.v;
       $$('#searchType button').forEach(b => b.classList.toggle('on', b === el));
@@ -1985,7 +1845,6 @@ window.addEventListener('beforeunload', e => { if (isDirty()) { e.preventDefault
 
 /* ════════════ 시작 ════════════ */
 $('#sqlPre').textContent = $('#schemaSql').textContent.trim();
-Backdrop.boot();
 setView((location.hash || '#search').slice(1), { push: false });
 renderNotice();
 (async () => {
