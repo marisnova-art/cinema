@@ -169,7 +169,36 @@ main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
 .searchbar .clear:hover{background:rgba(255,255,255,.1);color:var(--paper)}
 .kbd{font-size:11px;color:var(--dim);border:1px solid var(--line-soft);border-radius:6px;padding:1px 6px}
 
-.hero{max-width:980px;margin:0 auto 44px;padding:clamp(24px,4vw,44px);min-height:460px;display:flex;flex-direction:column}
+.hero{position:relative;overflow:hidden;isolation:isolate;max-width:980px;margin:0 auto 40px;padding:clamp(20px,2.6vw,30px) clamp(20px,3vw,34px);display:flex;flex-direction:column}
+.hero>*:not(.hero-art):not(.hero-shade):not(.hero-cap){position:relative;z-index:2}
+.hero-art{position:absolute;inset:0;z-index:0;pointer-events:none}
+.hero-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 28%;opacity:0;transform:scale(1.03);transition:opacity .9s var(--ease),transform 6s var(--ease)}
+.hero-art img.ld{opacity:.95;transform:scale(1)}
+.hero-art.poster-only img{left:auto;width:60%;object-position:center 18%;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 45%);mask-image:linear-gradient(90deg,transparent 0,#000 45%)}
+.hero-shade{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(90deg,rgba(7,11,9,.92) 0%,rgba(7,11,9,.74) 36%,rgba(7,11,9,.28) 70%,rgba(7,11,9,.12) 100%),linear-gradient(0deg,rgba(7,11,9,.6) 0%,transparent 48%)}
+.hero .display.hero-display{margin-top:22px;padding-top:0;font-size:clamp(28px,3.6vw,46px);line-height:1.02}
+.hero-display>span{display:block}
+.hero-display>span>*{display:inline}
+.hero .hero-note{margin-top:16px;word-break:keep-all}
+.hero .hero-foot{margin-top:22px;max-width:600px}
+.hero.has-art .hero-foot{max-width:min(600px,calc(100% - 330px))}
+.hero-cap{position:absolute;z-index:3;right:clamp(20px,3vw,34px);bottom:clamp(18px,2.4vw,26px);display:flex;align-items:center;gap:8px}
+.hero-cap-main{display:flex;align-items:center;gap:10px;max-width:260px;padding:6px 14px 6px 6px;border-radius:14px;text-align:left;
+  background:rgba(8,12,10,.5);border:1px solid rgba(255,255,255,.18);transition:background .2s,border-color .2s}
+.hero-cap-main:hover{background:rgba(8,12,10,.75);border-color:rgba(255,255,255,.35)}
+.hero-thumb{width:34px;height:51px;flex:none;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.08)}
+.hero-thumb img{width:100%;height:100%;object-fit:cover}
+.hero-cap-txt{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.hero-cap-txt small{font-size:10.5px;color:var(--bloom-soft);letter-spacing:.02em}
+.hero-cap-txt b{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hero-cap-txt em{font-style:normal;font-size:11px;color:var(--dim)}
+.hero-shuffle{width:34px;height:34px;background:rgba(8,12,10,.5)}
+.hero-shuffle svg{width:15px;height:15px}
+.row-head{flex-wrap:wrap}
+.row-tools{display:flex;align-items:center;gap:12px}
+.seg.sm button{height:28px;padding:0 11px;font-size:12px}
+@media (prefers-reduced-motion:reduce){.hero-art img{transition:none;transform:none}}
 .hero-top{display:flex;justify-content:space-between;align-items:flex-start}
 .hero-star{width:40px;height:40px}
 .hero .display{margin-top:auto;padding-top:60px}
@@ -443,6 +472,12 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
   .searchbar .kbd{display:none}
   .hero{min-height:0}
   .hero .display{padding-top:40px}
+  .hero .display.hero-display{font-size:clamp(24px,7.2vw,32px);margin-top:18px}
+  .hero.has-art .hero-foot{max-width:none}
+  .hero-shade{background:linear-gradient(180deg,rgba(7,11,9,.62) 0%,rgba(7,11,9,.8) 55%,rgba(7,11,9,.92) 100%)}
+  .hero-art.poster-only img{width:100%;-webkit-mask-image:none;mask-image:none}
+  .hero-cap{position:relative;right:auto;bottom:auto;margin-top:16px;align-self:flex-start;max-width:100%}
+  .hero-cap-main{max-width:calc(100vw - 110px)}
   .hero-foot{grid-template-columns:1fr auto;gap:10px}
   .hero-foot>:last-child{display:none}
   .rcard{grid-template-columns:96px minmax(0,1fr);gap:12px;padding:10px}
@@ -524,6 +559,7 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
       <span class="sep"></span>
       <select class="select" id="fSort" aria-label="정렬">
         <option value="recent">최신 감상순</option>
+        <option value="recent_asc">처음 감상순</option>
         <option value="added">최근 추가순</option>
         <option value="title">제목순</option>
         <option value="rating">별점순</option>
@@ -749,7 +785,10 @@ async function sb(path, { method = 'GET', body, prefer } = {}) {
 }
 
 /* ════════════ 상태 ════════════ */
+const RECENT_ORDER_KEY = 'mycinema.recentOrder';
 const state = {
+  recentOrder: (() => { try { return localStorage.getItem(RECENT_ORDER_KEY) === 'asc' ? 'asc' : 'desc'; } catch { return 'desc'; } })(),
+  heroId: null,
   view: 'search',
   lib: { status: 'idle', error: null },
   byId: new Map(),          // title_id → entry row + .title
@@ -865,10 +904,12 @@ function posterHTML(t, size = 'w342') {
   return `<div class="poster">${src ? `<img src="${src}" alt="${esc(t.title)} 포스터" loading="lazy" decoding="async" onload="this.classList.add('ld')" onerror="this.outerHTML=this.nextElementSibling.innerHTML" ><template>${fallback}</template>` : fallback}</div>`;
 }
 
-function pcardHTML(t, entry) {
+function pcardHTML(t, entry, opts = {}) {
   const saved = entry || state.byId.get(t.id);
   const country = (t.countries && t.countries[0]) ? regionName(t.countries[0]) : langName(t.original_language);
-  const sub = [yearOf(t.release_date) || '연도 미상', typeLabel(t.media_type), country].filter(Boolean).join(' / ');
+  const sub = opts.watched && saved && saved.watched_on
+    ? `감상 ${fmtDate(saved.watched_on)} / ${typeLabel(t.media_type)}`
+    : [yearOf(t.release_date) || '연도 미상', typeLabel(t.media_type), country].filter(Boolean).join(' / ');
   let rate = '';
   if (saved) {
     rate = saved.rating ? `${starsHTML(saved.rating)}<b>${saved.rating.toFixed(1)}</b>` : `<span>${saved.status === 'want' ? '보고 싶은 작품' : '별점 없음'}</span>`;
@@ -1233,7 +1274,7 @@ async function loadTrending() {
 
 function renderSearch() {
   const s = state.search, body = $('#searchBody');
-  if (!s.q) { const sp = saveStrips(body); body.innerHTML = searchIdleHTML(); restoreStrips(body, sp); return; }
+  if (!s.q) { const sp = saveStrips(body); body.innerHTML = searchIdleHTML(); settleImages(body); restoreStrips(body, sp); return; }
   if (s.status === 'loading') {
     body.innerHTML = `<div class="results-head"><h2><span class="l">검색 중 </span><b>“${esc(s.q)}”</b></h2></div><div class="results">${Array.from({ length: 6 }, () => '<div class="skel" style="height:220px;border-radius:24px"></div>').join('')}</div>`;
     return;
@@ -1285,26 +1326,68 @@ function rcardHTML(r, dupCount) {
   </article>`;
 }
 
+function heroPick(force) {
+  const pool = [...state.byId.values()].filter(e => Number(e.rating) >= 4 && (e.title.backdrop_path || e.title.poster_path));
+  if (!pool.length) { state.heroId = null; return null; }
+  if (!force && state.heroId && pool.some(e => e.title_id === state.heroId)) return state.byId.get(state.heroId);
+  const cand = force && pool.length > 1 ? pool.filter(e => e.title_id !== state.heroId) : pool;
+  const pick = cand[Math.floor(Math.random() * cand.length)];
+  state.heroId = pick.title_id;
+  return pick;
+}
+
 function searchIdleHTML() {
   const entries = [...state.byId.values()];
-  const recent = entries.slice().sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at))).slice(0, 14);
   const watched = entries.filter(e => e.status === 'watched').length;
+  const hero = heroPick(false);
+  let art = '', cap = '';
+  if (hero) {
+    const t = hero.title, bd = !!t.backdrop_path;
+    art = `<div class="hero-art${bd ? '' : ' poster-only'}"><img src="${IMG(bd ? t.backdrop_path : t.poster_path, bd ? 'w1280' : 'w780')}" alt="" decoding="async" onload="this.classList.add('ld')" onerror="this.parentNode.remove()"></div><div class="hero-shade"></div>`;
+    cap = `<div class="hero-cap">
+      <button class="hero-cap-main" data-action="open" data-id="${esc(hero.title_id)}" aria-label="${esc(t.title)} 상세 보기">
+        <span class="hero-thumb">${t.poster_path ? `<img src="${IMG(t.poster_path, 'w154')}" alt="">` : ''}</span>
+        <span class="hero-cap-txt"><small>내 별점 ★ ${Number(hero.rating).toFixed(1)}</small><b>${esc(t.title)}</b><em>${[yearOf(t.release_date), typeLabel(t.media_type)].filter(Boolean).join(' · ')}</em></span>
+      </button>
+      <button class="icon-btn hero-shuffle" data-action="hero-shuffle" aria-label="다른 작품 보기" title="평점 4.0 이상 작품 중 다른 작품"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg></button>
+    </div>`;
+  }
   let html = `
-  <section class="hero glass">
+  <section class="hero glass${hero ? ' has-art' : ''}">
+    ${art}
     <div class="hero-top">
       <span class="pill">TMDB 영화 · 드라마</span>
       <span class="hero-star">${ICON.asterisk}</span>
     </div>
-    <h1 class="display"><span class="l">KEEP</span><b>EVERY STORY</b><span class="l">YOU HAVE</span><b>WATCHED</b></h1>
+    <h1 class="display hero-display"><span><span class="l">KEEP </span><b>EVERY STORY</b></span><span><span class="l">YOU HAVE </span><b>WATCHED</b></span></h1>
     <p class="hero-note">${ICON.arrow}<span>위 검색창에 제목을 입력하세요.<br>본 작품과 보고 싶은 작품을 한곳에 기록합니다.</span></p>
     <div class="hero-foot">
       <span>내 목록 ${state.byId.size}편 · 본 작품 ${watched}편</span>
       <button class="circle-go" data-action="nav" data-view="library" aria-label="내 목록으로">${ICON.chev}</button>
       <span>${state.lib.status === 'ready' ? 'Supabase에 저장 중' : 'Supabase 연결 필요'}</span>
     </div>
+    ${cap}
   </section>`;
-  if (recent.length) {
-    html += `<div class="row-head"><h2><span class="l">최근 </span><b>기록한 작품</b></h2><button class="linkbtn" data-action="nav" data-view="library">전체 보기</button></div>
+
+  const dated = entries.filter(e => e.status === 'watched' && e.watched_on);
+  if (dated.length) {
+    const ord = state.recentOrder;
+    const key = e => String(e.watched_on).slice(0, 10) + String(e.updated_at || '');
+    const list = dated.sort((a, b) => ord === 'asc' ? key(a).localeCompare(key(b)) : key(b).localeCompare(key(a))).slice(0, 20);
+    html += `<div class="row-head">
+      <h2><span class="l">${ord === 'asc' ? '처음 ' : '최근 '}</span><b>감상한 작품</b></h2>
+      <div class="row-tools">
+        <div class="seg sm" role="group" aria-label="감상일 정렬">
+          <button data-action="recent-order" data-v="desc" class="${ord === 'desc' ? 'on' : ''}">최근 감상일순</button>
+          <button data-action="recent-order" data-v="asc" class="${ord === 'asc' ? 'on' : ''}">최초 감상일순</button>
+        </div>
+        <button class="linkbtn" data-action="recent-all">전체 보기</button>
+      </div>
+    </div>
+    ${stripHTML('recent-' + ord, list.map(e => pcardHTML(e.title, e, { watched: true })).join(''))}`;
+  } else if (entries.length) {
+    const recent = entries.slice().sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at))).slice(0, 20);
+    html += `<div class="row-head"><h2><span class="l">최근 </span><b>기록한 작품</b></h2><p>감상일을 입력하면 감상일 기준으로 정렬됩니다</p></div>
     ${stripHTML('recent', recent.map(e => pcardHTML(e.title, e)).join(''))}`;
   }
   if (state.trending.status === 'ready' && state.trending.items.length) {
@@ -1314,6 +1397,13 @@ function searchIdleHTML() {
     html += stripHTML('trending-skel', Array.from({ length: 8 }, () => '<div class="skel" style="aspect-ratio:2/3"></div>').join(''));
   }
   return html;
+}
+
+/* 이미 캐시된 이미지는 다시 그릴 때 페이드 없이 바로 표시 (재렌더 깜빡임 방지) */
+function settleImages(root) {
+  $$('.hero-art img, .poster img', root).forEach(img => {
+    if (img.complete && img.naturalWidth) { img.style.transition = 'none'; img.classList.add('ld'); void img.offsetWidth; img.style.transition = ''; }
+  });
 }
 
 /* ════════════ 빠른 추가 ════════════ */
@@ -1582,6 +1672,7 @@ function filteredEntries() {
   const watchKey = e => (e.watched_on ? String(e.watched_on).slice(0, 10) : String(e.updated_at || '').slice(0, 10)) + String(e.updated_at || '');
   const sorters = {
     recent: (a, b) => watchKey(b).localeCompare(watchKey(a)),
+    recent_asc: (a, b) => (!!b.watched_on - !!a.watched_on) || watchKey(a).localeCompare(watchKey(b)),
     added: (a, b) => String(b.created_at).localeCompare(String(a.created_at)),
     title: ko,
     rating: (a, b) => (b.rating || 0) - (a.rating || 0) || ko(a, b),
@@ -1793,6 +1884,16 @@ document.addEventListener('click', e => {
       break;
     }
     case 'reload-lib': loadLibrary(); break;
+    case 'recent-order':
+      state.recentOrder = el.dataset.v === 'asc' ? 'asc' : 'desc';
+      try { localStorage.setItem(RECENT_ORDER_KEY, state.recentOrder); } catch {}
+      renderSearch();
+      break;
+    case 'recent-all':
+      Object.assign(state.filters, { q: '', type: 'all', status: 'watched', genre: '', rating: '', liked: false, favorite: false, sort: state.recentOrder === 'asc' ? 'recent_asc' : 'recent' });
+      setView('library');
+      break;
+    case 'hero-shuffle': heroPick(true); renderSearch(); break;
     case 'strip': {
       const el2 = el.parentElement.querySelector('.strip');
       el2.scrollBy({ left: Number(el.dataset.dir) * el2.clientWidth * .85, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
