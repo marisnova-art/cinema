@@ -89,6 +89,8 @@ a{color:inherit}
 #ambient .grain{position:absolute;inset:0;opacity:.075;mix-blend-mode:overlay;pointer-events:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 @media (prefers-reduced-motion:reduce){#ambient canvas{transition:none}}
+/* 모바일 주소창이 접히고 펴져도 배경 높이가 흔들리지 않게 '가장 큰 뷰포트' 기준으로 고정 */
+#ambient{top:0;left:0;right:0;bottom:auto;height:100vh;height:100lvh}
 
 /* ─── Surfaces ─── */
 .glass{
@@ -424,6 +426,11 @@ main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
 .cin-fig span{font-size:12.5px;color:var(--muted);white-space:nowrap}
 .cin-fig b{font-size:clamp(22px,2.3vw,32px);font-weight:300;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums;white-space:nowrap}
 .cin-fig b small{font-size:.48em;margin-left:3px;color:var(--muted);font-weight:500}
+.cin-fig .cin-sub{font-style:normal;font-size:12.5px;color:var(--bloom-soft);font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:1px}
+.cin-me{display:inline-flex;align-items:center;gap:9px;height:34px;padding:0 14px 0 4px;border-radius:999px;border:1px solid rgba(255,255,255,.55);color:var(--paper);font-size:13px;font-weight:600;background:rgba(8,12,10,.35);max-width:100%;transition:background .2s}
+.cin-me:hover{background:rgba(255,255,255,.14)}
+.cin-me span.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cin-bio{margin:22px 0 0;max-width:52ch;font-size:15px;font-weight:300;color:var(--paper);word-break:keep-all;opacity:.9}
 button.cin-fig:hover b{color:var(--bloom-soft)}
 .cin-scope{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:4px 2px 16px;align-items:center}
 .cin-scope::-webkit-scrollbar{display:none}
@@ -573,6 +580,25 @@ input.input[type="date"]::-webkit-date-and-time-value{text-align:left}
 .sblock{margin-top:26px;padding-top:22px;border-top:1px solid var(--line-soft)}
 .sblock h3{margin:0 0 6px;font-size:16px;font-weight:700}
 .sblock p{margin:0 0 14px;font-size:13.5px;color:var(--muted);max-width:62ch}
+
+/* ─── 프로필 ─── */
+.av{--av:34px;position:relative;width:var(--av);height:var(--av);border-radius:50%;overflow:hidden;flex:none;display:grid;place-items:center;
+  background:linear-gradient(140deg,var(--bloom),#6e2f10);color:#fff;font-weight:700;font-size:calc(var(--av) * .42);line-height:1;box-shadow:0 0 0 1.5px rgba(255,255,255,.5)}
+.av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.av svg{width:56%;height:56%}
+.me-btn{display:flex;align-items:center;gap:9px;height:42px;padding:0 15px 0 4px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05);max-width:220px;transition:background .2s,border-color .2s}
+.me-btn:hover{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.4)}
+.me-btn .me-name{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-grid{display:grid;grid-template-columns:180px minmax(0,1fr);gap:30px;margin-top:24px;align-items:start}
+.pf-photo{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.pf-av{cursor:pointer;box-shadow:0 0 0 2px rgba(255,255,255,.55),0 20px 40px -18px rgba(0,0,0,.9)}
+.pf-av::after{content:"변경";position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.5);font-size:14px;font-weight:600;opacity:0;transition:opacity .2s}
+.pf-av:hover::after,.pf-av:focus-visible::after{opacity:1}
+.pf-photo-btns{display:flex;gap:8px}
+.pf-hint{margin:0;font-size:12px;color:var(--dim);word-break:keep-all}
+.pf-fields .sfield:first-child{margin-top:0}
+.profile .textarea{min-height:110px}
+.pf-drop{outline:2px dashed var(--bloom-soft);outline-offset:6px}
 .howto{margin:26px 0 0;padding:0 0 0 20px;color:var(--muted);font-size:13.5px;line-height:1.8}
 details.sql{margin-top:20px;border:1px solid var(--line-soft);border-radius:16px;overflow:hidden}
 details.sql summary{padding:14px 18px;cursor:pointer;font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -618,6 +644,11 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
   .topbar{padding:10px 14px;gap:10px}
   .brand span{font-size:16px}
   .sync span{display:none}
+  .me-btn{padding:0;width:42px;justify-content:center;border-color:transparent;background:none}
+  .me-btn .me-name{display:none}
+  .me-btn .av{--av:36px}
+  .pf-grid{grid-template-columns:minmax(0,1fr);gap:20px;margin-top:18px}
+  .cin-bio{font-size:14px;margin-top:16px}
   .tabs{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));margin:0;z-index:45;justify-content:space-around;padding:6px;border-radius:999px;
     background:rgba(12,18,14,.92);border:1px solid var(--line)}
   .tab{flex:1;justify-content:center;flex-direction:column;gap:1px;height:52px;font-size:11px;padding:0 6px;position:relative}
@@ -752,6 +783,7 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
   </nav>
   <div class="top-right">
     <div class="sync" id="sync" title="Supabase 연결 상태"><i></i><span>연결 확인 중</span></div>
+    <button class="me-btn" id="meBtn" data-action="profile" aria-label="내 프로필"><span class="av" id="meAv"></span><span class="me-name" id="meName">내 프로필</span></button>
     <button class="icon-btn" data-action="settings" aria-label="설정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </div>
 </header>
@@ -864,13 +896,43 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
 
     <ol class="howto">
       <li>TMDB에 로그인 → 설정 → API에서 키를 발급받습니다.</li>
-      <li>Supabase 프로젝트를 만들고 SQL Editor에서 아래 SQL을 한 번 실행합니다. 이미 쓰고 있다면 같은 SQL을 한 번 더 실행하면 새 열(people)과 인덱스만 추가됩니다.</li>
+      <li>Supabase 프로젝트를 만들고 SQL Editor에서 아래 SQL을 한 번 실행합니다. 이미 쓰고 있다면 같은 SQL을 한 번 더 실행하면 새 열(people)·프로필 테이블(profile)·인덱스만 추가됩니다.</li>
       <li>Project Settings → API에서 Project URL과 anon(public) 키를 복사해 입력합니다.</li>
     </ol>
     <details class="sql">
       <summary>Supabase 테이블 생성·업그레이드 SQL <button class="btn sm" data-action="copy-sql" type="button">SQL 복사</button></summary>
       <pre id="sqlPre"></pre>
     </details>
+  </div>
+</div>
+
+<!-- 프로필 모달 -->
+<div class="modal-root" id="profileRoot" hidden>
+  <div class="modal-scrim" data-action="close-profile"></div>
+  <div class="modal glass settings profile" role="dialog" aria-modal="true" aria-label="내 프로필">
+    <button class="icon-btn modal-close" data-action="close-profile" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <span class="pill">내 프로필</span>
+    <h2 class="display"><span class="l">MY </span><b>PROFILE</b></h2>
+    <div class="pf-grid">
+      <div class="pf-photo" id="pfPhoto">
+        <button class="av pf-av" id="pfAv" data-action="pf-pick" type="button" aria-label="프로필 이미지 선택" style="--av:136px"></button>
+        <div class="pf-photo-btns">
+          <button class="btn sm" data-action="pf-pick" type="button">이미지 변경</button>
+          <button class="btn sm" data-action="pf-remove" id="pfRemove" type="button">삭제</button>
+        </div>
+        <input type="file" id="pfFile" accept="image/*" hidden>
+        <p class="pf-hint">가운데를 정사각형으로 잘라 저장합니다. 이미지를 여기로 끌어와도 됩니다.</p>
+      </div>
+      <div class="pf-fields">
+        <div class="sfield"><label for="pfName">이름 <small id="pfNameCnt">0/30</small></label><input class="input" id="pfName" maxlength="30" placeholder="이름 또는 닉네임" autocomplete="nickname"></div>
+        <div class="sfield"><label for="pfBio">소개 <small id="pfBioCnt">0/160</small></label><textarea class="textarea" id="pfBio" maxlength="160" placeholder="좋아하는 장르, 감독, 나만의 감상 취향을 한두 줄로"></textarea></div>
+      </div>
+    </div>
+    <div class="sactions">
+      <button class="btn primary" data-action="pf-save" id="pfSave" type="button">저장</button>
+      <button class="btn" data-action="close-profile" type="button">취소</button>
+    </div>
+    <div class="test-out" id="pfOut"></div>
   </div>
 </div>
 
@@ -935,6 +997,20 @@ create policy "personal_titles_all"  on public.titles  for all to anon, authenti
 create policy "personal_entries_all" on public.entries for all to anon, authenticated using (true) with check (true);
 
 grant select, insert, update, delete on public.titles, public.entries to anon, authenticated;
+
+-- v3: 내 프로필 (이름 · 소개 · 프로필 이미지) — 개인용이므로 한 행(id = 1)만 사용
+create table if not exists public.profile (
+  id          smallint primary key default 1 check (id = 1),
+  name        text,
+  bio         text,
+  avatar      text,                                 -- 정사각 320px JPEG (data URL, 약 20~40KB)
+  updated_at  timestamptz not null default now()
+);
+alter table public.profile enable row level security;
+drop policy if exists "personal_profile_all" on public.profile;
+create policy "personal_profile_all" on public.profile for all to anon, authenticated using (true) with check (true);
+grant select, insert, update, delete on public.profile to anon, authenticated;
+
 notify pgrst, 'reload schema';
 </script>
 <script>
@@ -991,6 +1067,7 @@ const ICON = {
   pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>',
   play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
   dice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.9"/><path d="M4.5 20.2c1.3-3.7 4.2-5.6 7.5-5.6s6.2 1.9 7.5 5.6"/></svg>',
   film: '<svg class="big" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4M3 12h18"/></svg>'
 };
 
@@ -1447,25 +1524,42 @@ const restoreStrips = (root, m) => {
 };
 
 /* ════════════ 배경: 작은 캔버스에 그려 확대 → CSS blur 없이 부드러운 배경 ════════════ */
+/*  기존: 64×40(가로 1.6:1) 캔버스를 세로 화면 전체로 늘려 모바일에서 이미지가 세로로 3~4배 늘어져 보였음
+    수정: 캔버스 해상도의 비율을 실제 배경 영역 비율과 같게 맞추고, 화면 회전·리사이즈 시 다시 그림 */
 const Ambient = (() => {
-  let current = null, flip = false;
+  let current = null, flip = false, lastImg = null, active = -1;
   const cv = [$('#bgA'), $('#bgB')];
+  const BW = 64;
+  function size() {
+    const r = $('#ambient').getBoundingClientRect();
+    const ar = (r.width > 0 && r.height > 0) ? r.height / r.width : 40 / 64;
+    const h = clamp(Math.round(BW * ar), 16, 240);
+    if (cv[0].width === BW && cv[0].height === h) return false;
+    cv.forEach(c => { c.width = BW; c.height = h; });
+    return true;
+  }
+  function paint(c, img) {
+    const ctx = c.getContext('2d'), W = c.width, H = c.height;
+    const s = Math.max(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
+    ctx.clearRect(0, 0, W, H);
+    try { ctx.filter = 'blur(1.6px) saturate(1.35)'; } catch {}
+    ctx.drawImage(img, (W - w) / 2, (H - h) * .3, w, h);
+  }
+  size();
   return {
+    fit() { if (size() && lastImg && active >= 0) paint(cv[active], lastImg); },
     set(path, isBackdrop = true) {
       const url = path ? IMG(path, isBackdrop ? 'w300' : 'w185') : '';
       if (url === current) return;
       current = url;
-      if (!url) { cv.forEach(c => c.classList.remove('on')); return; }
+      if (!url) { lastImg = null; active = -1; cv.forEach(c => c.classList.remove('on')); return; }
       const img = new Image();
       img.decoding = 'async';
       img.onload = () => {
         if (current !== url) return;
-        const on = cv[flip ? 0 : 1], off = cv[flip ? 1 : 0]; flip = !flip;
-        const ctx = on.getContext('2d'), W = on.width, H = on.height;
-        const s = Math.max(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
-        ctx.clearRect(0, 0, W, H);
-        try { ctx.filter = 'blur(1.6px) saturate(1.35)'; } catch {}
-        ctx.drawImage(img, (W - w) / 2, (H - h) * .3, w, h);
+        active = flip ? 0 : 1;
+        const on = cv[active], off = cv[1 - active]; flip = !flip;
+        lastImg = img; size(); paint(on, img);
         on.classList.add('on'); off.classList.remove('on');
       };
       img.src = url;
@@ -2368,6 +2462,15 @@ function sfAttr(o = {}) {
   return 'data-action="stat-filter" ' + Object.entries(a).map(([k, v]) => `data-${k}="${esc(v)}"`).join(' ');
 }
 const hoursText = m => m >= 60 ? `${num(Math.round(m / 60))}<small>시간</small>` : `${num(m)}<small>분</small>`;
+/* 감상 시간(분) → "약 N일 N시간" (24시간 = 1일) */
+const daysText = m => {
+  if (!m) return '0일';
+  if (m < 1440) return '하루 미만';
+  let d = Math.floor(m / 1440), h = Math.round((m - d * 1440) / 60);
+  if (h === 24) { d++; h = 0; }
+  return `약 ${num(d)}일${h ? ` ${h}시간` : ''}`;
+};
+const timeFig = (m, est) => `<span>감상 시간${est ? ' (추정)' : ''}</span><b>${hoursText(m)}</b><i class="cin-sub" title="${num(m)}분 = ${(m / 1440).toFixed(1)}일">${daysText(m)}</i>`;
 const isLeap = y => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 
 function calHTML(year, days) {
@@ -2413,21 +2516,22 @@ function renderStats() {
   const figs = s.isAll ? [
     [`<span>본 작품</span><b>${num(s.watched)}</b>`, { status: 'watched' }],
     [`<span>보고 싶은 작품</span><b>${num(s.want)}</b>`, { status: 'want' }],
-    [`<span>감상 시간${s.minTv ? ' (추정)' : ''}</span><b>${hoursText(hoursM)}</b>`, null],
+    [timeFig(hoursM, s.minTv), null],
     [`<span>평균 별점</span><b>${s.avg ? s.avg.toFixed(2) : '–'}</b>`, { sort: 'rating', status: 'watched' }],
     [`<span>리뷰 쓴 작품</span><b>${num(s.reviews)}</b>`, null]
   ] : [
     [`<span>영화</span><b>${num(s.movies)}</b>`, { type: 'movie' }],
     [`<span>드라마</span><b>${num(s.tvs)}</b>`, { type: 'tv' }],
-    [`<span>감상 시간${s.minTv ? ' (추정)' : ''}</span><b>${hoursText(hoursM)}</b>`, null],
+    [timeFig(hoursM, s.minTv), null],
     [`<span>평균 별점</span><b>${s.avg ? s.avg.toFixed(2) : '–'}</b>`, { sort: 'rating' }],
     [`<span>좋아요</span><b>${num(s.liked)}</b>`, { liked: '1' }]
   ];
   let html = `
   <section class="cin-marquee">
     <div class="cin-wall" aria-hidden="true">${wall}</div>
-    <div class="cin-top"><span class="pill">내 영화관</span><span>${s.firstDate ? `${fmtDate(s.firstDate)} 첫 감상 기록부터` : '감상일을 입력하면 달력이 채워집니다'}</span></div>
+    <div class="cin-top">${cinMeHTML()}<span>${s.firstDate ? `${fmtDate(s.firstDate)} 첫 감상 기록부터` : '감상일을 입력하면 달력이 채워집니다'}</span></div>
     <div>
+      ${Profile.bio ? `<p class="cin-bio">“${esc(Profile.bio)}”</p>` : ''}
       <div class="cin-count"><b>${num(s.total)}</b><span>${s.isAll ? '편을 <strong>기록했습니다</strong>' : `편을 <strong>${s.scope}년에 봤습니다</strong>`}</span></div>
       <p class="cin-lead">${s.isAll
         ? `영화 ${num(s.movies)}편과 드라마 ${num(s.tvs)}편. 즐겨찾기 ${num(s.fav)}편, 좋아요 ${num(s.liked)}편.`
@@ -2536,6 +2640,124 @@ function renderLibraryStateInto(body) {
   else { body.innerHTML = loadingHTML(); paintProgress(); }
 }
 
+/* ════════════ 내 프로필 ════════════
+   이 기기(localStorage)에 즉시 저장 + Supabase profile 테이블(id=1)에 동기화 → 다른 기기와 공유 */
+const PF_LS = 'mycinema.profile.v1';
+const PF_MAX = { name: 30, bio: 160 };
+const Profile = { name: '', bio: '', avatar: '', updated_at: '', remote: null, draft: null };
+function pfLoadLocal() {
+  try { const o = JSON.parse(localStorage.getItem(PF_LS) || '{}') || {}; Profile.name = o.name || ''; Profile.bio = o.bio || ''; Profile.avatar = o.avatar || ''; Profile.updated_at = o.updated_at || ''; } catch {}
+}
+function pfSaveLocal() {
+  try { localStorage.setItem(PF_LS, JSON.stringify({ name: Profile.name, bio: Profile.bio, avatar: Profile.avatar, updated_at: Profile.updated_at })); return true; }
+  catch { return false; }
+}
+const pfInitial = n => { const c = String(n || '').trim(); return c ? [...c][0].toUpperCase() : ''; };
+function avHTML(p, size) {
+  const st = size ? ` style="--av:${size}px"` : '';
+  const inner = p.avatar ? `<img src="${esc(p.avatar)}" alt="" decoding="async">` : (pfInitial(p.name) ? esc(pfInitial(p.name)) : ICON.user);
+  return `<span class="av"${st}>${inner}</span>`;
+}
+function cinMeHTML() {
+  if (!Profile.name && !Profile.avatar) return `<span class="pill">내 영화관</span><button class="chip" data-action="profile">${ICON.user.replace('<svg ', '<svg width="14" height="14" ')}프로필 만들기</button>`;
+  return `<button class="cin-me" data-action="profile" aria-label="내 프로필 편집">${avHTML(Profile, 26)}<span class="nm">${esc(Profile.name || '나')}의 영화관</span></button>`;
+}
+function renderProfileUI() {
+  const av = $('#meAv');
+  av.innerHTML = Profile.avatar ? `<img src="${esc(Profile.avatar)}" alt="" decoding="async">` : (pfInitial(Profile.name) ? esc(pfInitial(Profile.name)) : ICON.user);
+  $('#meName').textContent = Profile.name || '내 프로필';
+  $('#meBtn').setAttribute('aria-label', Profile.name ? `${Profile.name} · 내 프로필` : '내 프로필');
+  $('#meBtn').title = Profile.name ? `${Profile.name}${Profile.bio ? ' — ' + Profile.bio : ''}` : '내 프로필 만들기';
+  if (state.view === 'stats' && state.lib.status === 'ready' && state.byId.size) renderStats();
+}
+const pfIsSchema = e => e && e.kind === 'schema';
+async function pfFetchRemote() {
+  if (!sbReady()) return;
+  try {
+    const rows = await sb('profile?select=name,bio,avatar,updated_at&id=eq.1');
+    Profile.remote = true;
+    const r = Array.isArray(rows) && rows[0];
+    const localT = Date.parse(Profile.updated_at) || 0;
+    if (r && (Date.parse(r.updated_at) || 0) >= localT) {
+      Profile.name = r.name || ''; Profile.bio = r.bio || ''; Profile.avatar = r.avatar || ''; Profile.updated_at = r.updated_at || '';
+      pfSaveLocal(); renderProfileUI();
+    } else if (localT && (Profile.name || Profile.bio || Profile.avatar)) {
+      pfPushRemote().catch(() => {});   // 이 기기에만 있던(더 최신) 프로필을 올림
+    }
+  } catch (e) { if (pfIsSchema(e)) Profile.remote = false; }
+}
+function pfPushRemote() {
+  return sb('profile?on_conflict=id', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal',
+    body: [{ id: 1, name: Profile.name || null, bio: Profile.bio || null, avatar: Profile.avatar || null, updated_at: Profile.updated_at }] });
+}
+function pfPaintDraft() {
+  const d = Profile.draft; if (!d) return;
+  const a = $('#pfAv');
+  a.innerHTML = d.avatar ? `<img src="${esc(d.avatar)}" alt="">` : (pfInitial($('#pfName').value) ? esc(pfInitial($('#pfName').value)) : ICON.user);
+  $('#pfRemove').disabled = !d.avatar;
+  $('#pfNameCnt').textContent = `${[...$('#pfName').value].length}/${PF_MAX.name}`;
+  $('#pfBioCnt').textContent = `${[...$('#pfBio').value].length}/${PF_MAX.bio}`;
+}
+function openProfile() {
+  Profile.draft = { avatar: Profile.avatar };
+  $('#pfName').value = Profile.name; $('#pfBio').value = Profile.bio;
+  $('#pfOut').innerHTML = Profile.remote === false
+    ? '<div class="bad">✕ Supabase에 profile 테이블이 없어 이 기기에만 저장됩니다. 설정의 SQL을 한 번 더 실행하면 다른 기기와도 연동됩니다.</div>' : '';
+  pfPaintDraft();
+  $('#profileRoot').hidden = false; document.body.classList.add('lock');
+  if (!mqMobile.matches) setTimeout(() => $('#pfName').focus(), 60);
+}
+function closeProfile() {
+  $('#profileRoot').hidden = true; Profile.draft = null; $('#pfFile').value = '';
+  if (!state.detail && $('#settingsRoot').hidden) document.body.classList.remove('lock');
+}
+/* 이미지 → 가운데 정사각 크롭 → 320px JPEG data URL */
+async function pfReadImage(file) {
+  if (!file || !/^image\//.test(file.type || '')) throw new Error('이미지 파일만 사용할 수 있습니다.');
+  if (file.size > 25 * 1024 * 1024) throw new Error('25MB 이하의 이미지를 선택하세요.');
+  let src, w, h, cleanup = () => {};
+  try { src = await createImageBitmap(file, { imageOrientation: 'from-image' }); w = src.width; h = src.height; cleanup = () => src.close && src.close(); }
+  catch {
+    const url = URL.createObjectURL(file);
+    src = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('이미지를 읽지 못했습니다. (HEIC 등은 JPG/PNG로 바꿔 올리세요)')); i.src = url; });
+    w = src.naturalWidth; h = src.naturalHeight; cleanup = () => URL.revokeObjectURL(url);
+  }
+  try {
+    const S = 320, side = Math.min(w, h);
+    const c = document.createElement('canvas'); c.width = S; c.height = S;
+    const ctx = c.getContext('2d'); ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#0a130e'; ctx.fillRect(0, 0, S, S);
+    ctx.drawImage(src, (w - side) / 2, (h - side) / 2, side, side, 0, 0, S, S);
+    return c.toDataURL('image/jpeg', .86);
+  } finally { cleanup(); }
+}
+async function pfUseFile(file) {
+  if (!Profile.draft) return;
+  try { Profile.draft.avatar = await pfReadImage(file); pfPaintDraft(); }
+  catch (e) { toast(e.message, 'error'); }
+}
+async function saveProfile() {
+  const btn = $('#pfSave'); if (!Profile.draft || btn.disabled) return;
+  const name = $('#pfName').value.trim().slice(0, 60), bio = $('#pfBio').value.trim().replace(/\n{3,}/g, '\n\n');
+  Profile.name = [...name].slice(0, PF_MAX.name).join(''); Profile.bio = [...bio].slice(0, PF_MAX.bio).join('');
+  Profile.avatar = Profile.draft.avatar || '';
+  Profile.updated_at = new Date().toISOString();
+  const localOk = pfSaveLocal();
+  renderProfileUI();
+  if (!sbReady()) { closeProfile(); toast(localOk ? '프로필을 이 기기에 저장했습니다.' : '프로필을 적용했지만 브라우저 저장소에 저장하지 못했습니다.', localOk ? 'ok' : 'error'); return; }
+  btn.disabled = true;
+  $('#pfOut').innerHTML = '<div class="loading-line"><span class="spin"></span>Supabase에 저장하는 중</div>';
+  try {
+    await pfPushRemote(); Profile.remote = true;
+    closeProfile(); toast('프로필을 저장했습니다.', 'ok');
+  } catch (e) {
+    if (pfIsSchema(e)) {
+      Profile.remote = false;
+      $('#pfOut').innerHTML = '<div class="bad">✕ Supabase에 profile 테이블이 없어 이 기기에만 저장했습니다. 설정 → SQL을 SQL Editor에서 한 번 더 실행하면 다른 기기와도 연동됩니다.</div>';
+    } else $('#pfOut').innerHTML = `<div class="bad">✕ 이 기기에는 저장했지만 Supabase 저장에 실패했습니다: ${esc(e.message)}</div>`;
+  } finally { btn.disabled = false; }
+}
+
 /* ════════════ 설정 모달 ════════════ */
 function openSettings() {
   const ls = readLocal();
@@ -2571,6 +2793,8 @@ async function saveSettings() {
     lines.push(['ok', 'Supabase 연결 및 테이블 확인 성공']);
     try { await sb('titles?select=people&limit=1'); setHasPeople(true); lines.push(['ok', '배우 검색 열(people) 확인']); }
     catch (e) { if (isPeopleErr(e)) { setHasPeople(false); lines.push(['bad', '배우 검색 열(people)이 없습니다. 아래 SQL을 한 번 더 실행하세요.']); } }
+    try { await sb('profile?select=id&limit=1'); Profile.remote = true; lines.push(['ok', '프로필 테이블(profile) 확인']); }
+    catch (e) { if (pfIsSchema(e)) { Profile.remote = false; lines.push(['bad', '프로필 테이블(profile)이 없습니다. 아래 SQL을 한 번 더 실행하면 프로필이 기기 간 연동됩니다.']); } }
   } catch (e) { lines.push(['bad', 'Supabase: ' + e.message]); }
   out.innerHTML = lines.map(([c, m]) => `<div class="${c}">${c === 'ok' ? '✓' : '✕'} ${esc(m)}</div>`).join('');
   $('#srcTmdb').textContent = C.TMDB_API_KEY ? 'CONFIG 사용 중' : ls.tmdb ? '브라우저에 저장됨' : '비어 있음';
@@ -2580,6 +2804,7 @@ async function saveSettings() {
   if (state.trending.status !== 'ready') { state.trending.status = 'idle'; loadTrending(); }
   if (prevUrl !== cfg().sbUrl) { state.lib.status = 'idle'; state.byId = new Map(); state.libVer++; }
   loadLibrary();
+  pfFetchRemote();
 }
 
 /* 예전에 저장된 작품들의 배우 이름 색인을 한 번에 채움 (500편씩) */
@@ -2624,6 +2849,11 @@ document.addEventListener('click', e => {
   switch (a) {
     case 'nav': e.preventDefault(); if (state.detail) closeDetail(true); setView(el.dataset.view); break;
     case 'settings': openSettings(); break;
+    case 'profile': openProfile(); break;
+    case 'close-profile': closeProfile(); break;
+    case 'pf-pick': $('#pfFile').click(); break;
+    case 'pf-remove': if (Profile.draft) { Profile.draft.avatar = ''; pfPaintDraft(); } break;
+    case 'pf-save': saveProfile(); break;
     case 'close-settings': closeSettings(); break;
     case 'settings-save': saveSettings(); break;
     case 'settings-reset': try { localStorage.removeItem(LS_KEY); } catch {} toast('브라우저에 저장한 키를 지웠습니다.'); openSettings(); renderNotice(); break;
@@ -2722,13 +2952,15 @@ document.addEventListener('click', e => {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    if (!$('#settingsRoot').hidden) closeSettings();
+    if (!$('#profileRoot').hidden) closeProfile();
+    else if (!$('#settingsRoot').hidden) closeSettings();
     else if (state.detail) closeDetail();
     return;
   }
   const tag = (e.target.tagName || '').toLowerCase();
   const typing = ['input', 'textarea', 'select'].includes(tag) || e.target.isContentEditable;
-  if (e.key === '/' && !typing && !state.detail && $('#settingsRoot').hidden) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !$('#profileRoot').hidden) { e.preventDefault(); saveProfile(); return; }
+  if (e.key === '/' && !typing && !state.detail && $('#settingsRoot').hidden && $('#profileRoot').hidden) {
     e.preventDefault(); if (state.view !== 'search') setView('search'); $('#q').focus();
   }
   if ((e.key === 'Enter' || e.key === ' ') && !typing && e.target.matches('[role="button"][data-action="open"]')) {
@@ -2739,6 +2971,18 @@ document.addEventListener('keydown', e => {
   }
   if ((e.metaKey || e.ctrlKey) && e.key === 's' && state.detail) { e.preventDefault(); saveRecord(); }
 });
+
+/* 프로필 입력 */
+$('#pfName').addEventListener('input', pfPaintDraft);
+$('#pfBio').addEventListener('input', pfPaintDraft);
+$('#pfName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveProfile(); } });
+$('#pfFile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) pfUseFile(f); e.target.value = ''; });
+{
+  const zone = $('#pfPhoto');
+  ['dragenter', 'dragover'].forEach(t => zone.addEventListener(t, e => { e.preventDefault(); zone.classList.add('pf-drop'); }));
+  ['dragleave', 'drop'].forEach(t => zone.addEventListener(t, e => { e.preventDefault(); zone.classList.remove('pf-drop'); }));
+  zone.addEventListener('drop', e => { const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) pfUseFile(f); });
+}
 
 const debouncedSearch = debounce(v => runSearch(v), 450);
 $('#q').addEventListener('input', e => { $('[data-action="clear-search"]').hidden = !e.target.value; debouncedSearch(e.target.value); });
@@ -2766,7 +3010,7 @@ document.addEventListener('scroll', e => { const t = e.target; if (t && t.classL
 function setTb() { const h = $('#topbar').offsetHeight; if (h) document.documentElement.style.setProperty('--tb', h + 'px'); }
 let lastW = window.innerWidth;
 window.addEventListener('resize', debounce(() => {
-  setTb(); updateStrips();
+  setTb(); updateStrips(); Ambient.fit();
   if (window.innerWidth === lastW) { vlPaint(); return; }   // 모바일 주소창 높이 변화는 무시
   lastW = window.innerWidth;
   if (state.view === 'library' && VL.root) { const a = vlAnchor(); VL.width = 0; vlLayout(); vlRestore(a); vlPaint(true); }
@@ -2777,6 +3021,8 @@ window.addEventListener('beforeunload', e => { if (isDirty()) { e.preventDefault
 
 /* ════════════ 시작 ════════════ */
 $('#sqlPre').textContent = $('#schemaSql').textContent.trim();
+pfLoadLocal();
+renderProfileUI();
 setTb();
 setView((location.hash || '#search').slice(1), { push: false });
 renderNotice();
@@ -2785,6 +3031,7 @@ renderNotice();
   loadTrending();
 })();
 loadLibrary();
+pfFetchRemote();
 if (!tmdbReady() && !sbReady()) setTimeout(openSettings, 400);
 
 })();
