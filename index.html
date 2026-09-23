@@ -32,9 +32,9 @@ window.CONFIG = {
 </script>
 
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
-<link rel="preconnect" href="https://image.tmdb.org">
+<link rel="preconnect" href="https://image.tmdb.org" crossorigin>
+<link rel="dns-prefetch" href="https://api.themoviedb.org">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-
 <style>
 :root{
   --meadow:#0a130e;
@@ -55,14 +55,17 @@ window.CONFIG = {
   --r-mid:18px;
   --r-sm:12px;
   --ease:cubic-bezier(.2,.7,.2,1);
+  --tb:68px;
   --font:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",sans-serif;
+  --stars5:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 24'%3E%3Cg id='s'%3E%3Cpath d='M12 2.6l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.4 6.1 20.7l1.3-6.6L2.5 9.5l6.6-.8z'/%3E%3C/g%3E%3Cuse href='%23s' x='24'/%3E%3Cuse href='%23s' x='48'/%3E%3Cuse href='%23s' x='72'/%3E%3Cuse href='%23s' x='96'/%3E%3C/svg%3E");
 }
 *{box-sizing:border-box}
 html,body{margin:0}
+html{-webkit-text-size-adjust:100%}
 body{
   font-family:var(--font);color:var(--paper);background:var(--meadow);
   font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;
-  min-height:100vh;overflow-x:hidden;
+  min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;
 }
 body.lock{overflow:hidden}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -72,23 +75,22 @@ a{color:inherit}
 :focus-visible{outline:2px solid var(--bloom-soft);outline-offset:2px;border-radius:8px}
 [hidden]{display:none!important}
 
-/* ─── Ambient: 메인 박스 작품 이미지를 블러 처리한 배경 ─── */
-#ambient{position:fixed;inset:0;z-index:-1;overflow:hidden;background:
+/* ─── Ambient: 메인 박스 작품 이미지 → 저해상 캔버스 확대(필터 없이 부드러운 블러) ─── */
+#ambient{position:fixed;inset:0;z-index:-1;overflow:hidden;contain:strict;background:
   radial-gradient(60% 45% at 8% 6%, rgba(122,167,199,.4), transparent 70%),
   radial-gradient(30% 24% at 68% 30%, rgba(255,106,38,.32), transparent 70%),
   radial-gradient(70% 50% at 60% 100%, rgba(40,78,38,.6), transparent 70%),
   linear-gradient(180deg,#0f1a17 0%,#0a130e 55%,#07100a 100%)}
-#ambient .bg{position:absolute;inset:-14%;background-size:cover;background-position:center 30%;background-repeat:no-repeat;
-  filter:blur(60px) saturate(1.35);opacity:0;transform:scale(1.06);transition:opacity 1.8s var(--ease);will-change:opacity}
-#ambient .bg.on{opacity:1}
+#ambient canvas{position:absolute;left:-8%;top:-8%;width:116%;height:116%;opacity:0;transition:opacity 1.6s var(--ease)}
+#ambient canvas.on{opacity:1}
 #ambient .veil{position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(130% 95% at 50% 0%, rgba(7,11,9,.3) 0%, rgba(7,11,9,.72) 72%, rgba(7,11,9,.88) 100%),
              linear-gradient(180deg, rgba(7,11,9,.18) 0%, rgba(7,11,9,.62) 100%)}
 #ambient .grain{position:absolute;inset:0;opacity:.075;mix-blend-mode:overlay;pointer-events:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-@media (prefers-reduced-motion:reduce){#ambient .bg{transition:none}}
+@media (prefers-reduced-motion:reduce){#ambient canvas{transition:none}}
 
-/* ─── Glass ─── */
+/* ─── Surfaces ─── */
 .glass{
   position:relative;
   background:linear-gradient(140deg,var(--glass-hi),var(--glass-lo) 62%);
@@ -97,6 +99,9 @@ a{color:inherit}
   -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.2), 0 40px 80px -40px rgba(0,0,0,.65);
 }
+/* 반복되는 카드·패널은 backdrop-filter 없이 (스크롤 성능) */
+.solid{position:relative;background:linear-gradient(150deg,rgba(255,255,255,.085),rgba(255,255,255,.028) 70%);border:1px solid var(--line-soft);
+  border-radius:var(--r-card);box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
 .pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 14px;border:1px solid rgba(255,255,255,.55);
   border-radius:999px;font-size:12.5px;font-weight:400;letter-spacing:.02em;white-space:nowrap;color:var(--paper)}
 .pill.xs{height:22px;padding:0 9px;font-size:11px;border-color:rgba(255,255,255,.4)}
@@ -118,25 +123,35 @@ a{color:inherit}
 .btn.sm{height:34px;padding:0 13px;font-size:13px}
 .btn.danger{color:var(--danger);border-color:rgba(255,123,114,.35)}
 .btn[disabled]{opacity:.45;pointer-events:none}
+.btn svg{width:16px;height:16px}
 .icon-btn{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:rgba(255,255,255,.05);transition:background .2s}
 .icon-btn:hover{background:rgba(255,255,255,.15)}
 .icon-btn svg{width:18px;height:18px}
 .linkbtn{font-size:13px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
 .linkbtn:hover{color:var(--paper)}
 
-.seg{display:inline-flex;padding:3px;border-radius:999px;border:1px solid var(--line-soft);background:rgba(0,0,0,.18);gap:2px}
-.seg button{height:32px;padding:0 14px;border-radius:999px;font-size:13px;color:var(--muted);transition:background .2s,color .2s}
+.seg{display:inline-flex;padding:3px;border-radius:999px;border:1px solid var(--line-soft);background:rgba(0,0,0,.18);gap:2px;flex:none}
+.seg button{height:32px;padding:0 14px;border-radius:999px;font-size:13px;color:var(--muted);transition:background .2s,color .2s;white-space:nowrap}
 .seg button:hover{color:var(--paper)}
 .seg button.on{background:var(--paper);color:#10140f;font-weight:700}
+.seg.sm button{height:28px;padding:0 11px;font-size:12px}
 
-.chip{height:34px;padding:0 13px;border-radius:999px;border:1px solid var(--line-soft);font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.chip{height:34px;padding:0 13px;border-radius:999px;border:1px solid var(--line-soft);font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none;transition:border-color .2s,color .2s}
+.chip:hover{color:var(--paper);border-color:var(--line)}
 .chip.on{border-color:var(--bloom-soft);color:var(--bloom-soft);background:rgba(255,106,38,.1)}
+.chip small{font-size:11px;color:var(--dim)}
+.chip.on small{color:inherit;opacity:.75}
 
-.select{height:36px;border-radius:999px;border:1px solid var(--line-soft);background:rgba(0,0,0,.25);padding:0 32px 0 14px;font-size:13px;
+.select{height:36px;border-radius:999px;border:1px solid var(--line-soft);background:rgba(0,0,0,.25);padding:0 32px 0 14px;font-size:13px;flex:none;max-width:200px;
   appearance:none;-webkit-appearance:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 12px center}
 .select option{background:#18201b;color:var(--paper)}
+
+/* 작은 별점: 요소 1개 + 마스크 (카드 수천 개에서도 가볍게) */
+.mstars{--p:0%;display:inline-block;width:62px;height:12.4px;flex:none;vertical-align:-1px;
+  background:linear-gradient(90deg,var(--bloom) var(--p),rgba(255,255,255,.2) var(--p));
+  -webkit-mask:var(--stars5) no-repeat 0 0/100% 100%;mask:var(--stars5) no-repeat 0 0/100% 100%}
 
 /* ─── Top bar ─── */
 .topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:18px;padding:14px clamp(16px,3vw,36px)}
@@ -150,12 +165,14 @@ a{color:inherit}
 .tab svg{width:17px;height:17px}
 .tab:hover{color:var(--paper)}
 .tab.on{background:rgba(255,255,255,.12);color:var(--paper);font-weight:600;box-shadow:inset 0 0 0 1px var(--line)}
-.tab em{font-style:normal;font-size:11px;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--paper);color:#10140f;font-weight:700;display:grid;place-items:center}
+.tab em{font-style:normal;font-size:11px;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--paper);color:#10140f;font-weight:700;display:grid;place-items:center;font-variant-numeric:tabular-nums}
 .top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
-.sync{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim)}
-.sync i{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.sync{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--dim);flex:none}
 .sync.ok i{background:var(--ok);box-shadow:0 0 10px var(--ok)}
 .sync.err i{background:var(--danger);box-shadow:0 0 10px var(--danger)}
+.sync.busy i{background:var(--bloom-soft);animation:blink 1s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
 
 main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
 .notice{max-width:1440px;margin:14px auto 0;padding:0 clamp(16px,3vw,36px)}
@@ -173,57 +190,83 @@ main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
 .searchbar .clear:hover{background:rgba(255,255,255,.1);color:var(--paper)}
 .kbd{font-size:11px;color:var(--dim);border:1px solid var(--line-soft);border-radius:6px;padding:1px 6px}
 
-.hero{position:relative;overflow:hidden;isolation:isolate;width:100%;margin:0 0 40px;min-height:460px;padding:clamp(24px,3.4vw,44px);display:flex;flex-direction:column}
-.hero>*:not(.hero-art):not(.hero-shade):not(.hero-cap){position:relative;z-index:2}
-.hero-art{position:absolute;inset:0;z-index:0;pointer-events:none}
-.hero-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 28%;opacity:0;transform:scale(1.03);transition:opacity .9s var(--ease),transform 6s var(--ease)}
-.hero-art img.ld{opacity:.95;transform:scale(1)}
-.hero-art.poster-only img{left:auto;width:60%;object-position:center 18%;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 45%);mask-image:linear-gradient(90deg,transparent 0,#000 45%)}
+/* ─── HERO (메인 박스) ─── */
+.hero{position:relative;overflow:hidden;isolation:isolate;margin:0 0 42px;border-radius:34px;
+  min-height:clamp(580px,76vh,820px);display:grid;grid-template-rows:auto 1fr auto;padding:0}
+.hero-art{position:absolute;inset:0;z-index:0;pointer-events:none;background:#0c1510}
+.hero-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 30%;opacity:0;transform:scale(1.04);
+  transition:opacity 1s var(--ease),transform 8s linear}
+.hero-art img.ld{opacity:1;transform:scale(1)}
+.hero-art.poster-only img{left:auto;width:62%;object-position:center 20%;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 42%);mask-image:linear-gradient(90deg,transparent 0,#000 42%)}
 .hero-shade{position:absolute;inset:0;z-index:1;pointer-events:none;
-  background:linear-gradient(90deg,rgba(7,11,9,.92) 0%,rgba(7,11,9,.74) 36%,rgba(7,11,9,.28) 70%,rgba(7,11,9,.12) 100%),linear-gradient(0deg,rgba(7,11,9,.6) 0%,transparent 48%)}
-.hero .display.hero-display{margin-top:auto;padding-top:48px;font-size:clamp(32px,4.2vw,60px);line-height:1}
-.hero-display>span{display:block}
-.hero-display>span>*{display:inline}
-.hero .hero-note{margin-top:24px;word-break:keep-all}
-.hero .hero-foot{margin-top:36px;max-width:760px}
-.hero.has-art .hero-foot{max-width:min(760px,calc(100% - 340px))}
-.hero-cap{position:absolute;z-index:3;right:clamp(24px,3.4vw,44px);bottom:clamp(22px,3vw,40px);display:flex;align-items:center;gap:8px}
-.hero-cap-main{display:flex;align-items:center;gap:10px;max-width:260px;padding:6px 14px 6px 6px;border-radius:14px;text-align:left;
-  background:rgba(8,12,10,.5);border:1px solid rgba(255,255,255,.18);transition:background .2s,border-color .2s}
-.hero-cap-main:hover{background:rgba(8,12,10,.75);border-color:rgba(255,255,255,.35)}
-.hero-thumb{width:34px;height:51px;flex:none;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.08)}
-.hero-thumb img{width:100%;height:100%;object-fit:cover}
-.hero-cap-txt{display:flex;flex-direction:column;min-width:0;line-height:1.3}
-.hero-cap-txt small{font-size:10.5px;color:var(--bloom-soft);letter-spacing:.02em}
-.hero-cap-txt b{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hero-cap-txt em{font-style:normal;font-size:11px;color:var(--dim)}
-.hero-timer{position:relative;width:42px;height:42px;flex:none;border-radius:50%;display:grid;place-items:center;background:rgba(8,12,10,.5);transition:background .2s}
-.hero-timer:hover{background:rgba(8,12,10,.8)}
-.hero-timer svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
-.hero-timer .trk{fill:none;stroke:rgba(255,255,255,.18);stroke-width:2.4}
-.hero-timer .prog{fill:none;stroke:var(--bloom);stroke-width:2.4;stroke-linecap:round;stroke-dasharray:106.81;transition:stroke-dashoffset 1s linear}
-.hero-timer b{position:relative;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
-.hero-timer b small{font-size:9px;font-weight:500;margin-left:1px;color:var(--muted)}
-.hero-timer.single{display:none}
-.row-head{flex-wrap:wrap}
-.row-tools{display:flex;align-items:center;gap:12px}
-.seg.sm button{height:28px;padding:0 11px;font-size:12px}
-@media (prefers-reduced-motion:reduce){.hero-art img{transition:none;transform:none}}
-.hero-top{display:flex;justify-content:space-between;align-items:flex-start}
-.hero-star{width:40px;height:40px}
-.hero .display{margin-top:auto;padding-top:60px}
-.hero-note{display:flex;gap:16px;align-items:flex-start;margin:34px 0 0;font-size:13.5px;color:var(--muted);line-height:1.5}
-.hero-note svg{width:26px;flex:none;margin-top:2px}
-.hero-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-top:46px;font-size:13px;color:var(--muted)}
-.hero-foot>:last-child{text-align:right}
-.circle-go{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.7);display:grid;place-items:center}
-.circle-go svg{width:14px;height:14px}
-.circle-go:hover{background:rgba(255,255,255,.14)}
+  background:
+    linear-gradient(90deg,rgba(7,11,9,.86) 0%,rgba(7,11,9,.5) 34%,rgba(7,11,9,.06) 66%,rgba(7,11,9,0) 100%),
+    linear-gradient(0deg,rgba(7,11,9,.94) 0%,rgba(7,11,9,.5) 26%,rgba(7,11,9,0) 52%),
+    linear-gradient(180deg,rgba(7,11,9,.6) 0%,rgba(7,11,9,0) 20%)}
+.hero-top{position:relative;z-index:2;display:flex;align-items:center;gap:14px;padding:clamp(20px,2.4vw,30px) clamp(22px,3.2vw,44px) 0}
+.hero-top .pill{background:rgba(8,12,10,.35)}
+.hero-slogan{margin:0 0 0 auto;text-align:right;font-size:12px;line-height:1.35;letter-spacing:.12em;text-transform:uppercase;color:rgba(244,242,238,.72)}
+.hero-slogan b{font-weight:800;color:var(--paper)}
+.hero-main{position:relative;z-index:2;align-self:end;padding:40px clamp(22px,3.2vw,44px) 30px;max-width:min(820px,64%)}
+.hero-rate{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.hero-rate .mstars{width:92px;height:18.4px}
+.hero-rate b{font-size:20px;font-weight:700;color:var(--paper);letter-spacing:-.01em}
+.hero-title{margin:14px 0 0;font-size:clamp(40px,5.4vw,82px);font-weight:800;line-height:1;letter-spacing:-.035em;word-break:keep-all;overflow-wrap:anywhere;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-wrap:balance}
+.hero-orig{margin:10px 0 0;font-size:16px;font-weight:200;color:var(--muted)}
+.hero-meta{margin:14px 0 0;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:rgba(244,242,238,.8)}
+.hero-meta span+span::before{content:"";display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--bloom);margin:0 12px 3px 0;vertical-align:middle}
+.hero-quote{margin:20px 0 0;padding:2px 0 2px 16px;border-left:2px solid var(--bloom);font-size:15.5px;font-weight:300;line-height:1.6;color:rgba(244,242,238,.9);max-width:58ch;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:keep-all}
+.hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.hero-actions .btn{height:46px;padding:0 22px}
+.hero-actions .btn:not(.primary){background:rgba(8,12,10,.4)}
+/* 하단 도크: 진행 막대 + 이전/일시정지/다음 + 다음 작품 미리보기 */
+.hero-dock{position:relative;z-index:2;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:22px;
+  padding:18px clamp(22px,3.2vw,44px) clamp(20px,2.4vw,28px);border-top:1px solid rgba(255,255,255,.14);background:rgba(7,11,9,.35)}
+.hero-ctrl{display:flex;align-items:center;gap:10px}
+.hc{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(255,255,255,.34);background:rgba(8,12,10,.45);color:var(--paper);
+  transition:background .2s,border-color .2s,transform .15s}
+.hc:hover{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.6)}
+.hc:active{transform:scale(.94)}
+.hc svg{width:22px;height:22px}
+.hc.play{width:60px;height:60px;background:var(--paper);border-color:var(--paper);color:#10140f}
+.hc.play:hover{background:#fff}
+.hc.play svg{width:20px;height:20px}
+.hc[disabled]{opacity:.3;pointer-events:none}
+.hero-prog-wrap{min-width:0;display:flex;flex-direction:column;gap:10px}
+.hero-prog-info{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.hero-prog-info b{color:var(--paper);font-weight:600;font-variant-numeric:tabular-nums}
+.hero-prog-info span:first-child{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.hero-prog-info span:last-child{flex:none}
+.hero-prog{height:4px;border-radius:99px;background:rgba(255,255,255,.16);overflow:hidden}
+.hero-prog i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--bloom),var(--bloom-soft));transform-origin:left center;transform:scaleX(0);
+  animation:heroprog var(--dur,30s) linear forwards}
+.hero.paused .hero-prog i{animation-play-state:paused}
+@keyframes heroprog{to{transform:scaleX(1)}}
+.hero-next{display:flex;align-items:center;gap:14px;width:min(320px,26vw);padding:8px 18px 8px 8px;border-radius:18px;text-align:left;
+  background:rgba(8,12,10,.55);border:1px solid rgba(255,255,255,.2);transition:background .2s,border-color .2s}
+.hero-next:hover{background:rgba(8,12,10,.8);border-color:rgba(255,255,255,.45)}
+.hero-next .nthumb{width:48px;height:72px;flex:none;border-radius:9px;overflow:hidden;background:rgba(255,255,255,.08)}
+.hero-next .nthumb img{width:100%;height:100%;object-fit:cover}
+.hero-next span{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.hero-next small{font-size:11.5px;color:var(--bloom-soft)}
+.hero-next b{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hero-next em{font-style:normal;font-size:12px;color:var(--dim)}
+.hero.single .hero-ctrl,.hero.single .hero-next,.hero.single .hero-prog{display:none}
+/* 기록이 없을 때의 소개형 박스 */
+.hero.intro{background:linear-gradient(140deg,var(--glass-hi),var(--glass-lo) 62%)}
+.hero-intro{position:relative;z-index:2;align-self:end;padding:40px clamp(22px,3.2vw,44px)}
+.hero-intro .display{font-size:clamp(38px,5.6vw,78px);line-height:.98}
+.hero-note{display:flex;gap:16px;align-items:flex-start;margin:28px 0 0;font-size:14px;color:var(--muted);line-height:1.55;word-break:keep-all}
+.hero-note svg{width:26px;flex:none;margin-top:3px}
+@media (prefers-reduced-motion:reduce){.hero-art img{transition:none;transform:none}.hero-prog i{animation:none;transform:scaleX(0)}}
 
-.row-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 14px}
+.row-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 14px}
 .row-head h2{margin:0;font-size:20px;font-weight:300;letter-spacing:-.01em}
 .row-head h2 b{font-weight:800}
 .row-head p{margin:0;font-size:13px;color:var(--dim)}
+.row-tools{display:flex;align-items:center;gap:12px}
 .strip-wrap{position:relative;margin:0 -8px 30px}
 .strip-wrap.compact{margin:0 -8px}
 .strip{display:grid;grid-auto-flow:column;grid-auto-columns:clamp(122px,12vw,158px);gap:16px;overflow-x:auto;overflow-y:hidden;
@@ -235,8 +278,6 @@ main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
 .strip-wrap.at-start .strip{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 64px),transparent 100%);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 64px),transparent 100%)}
 .strip-wrap.at-end .strip{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 32px,#000 100%);mask-image:linear-gradient(90deg,transparent 0,#000 32px,#000 100%)}
 .strip-wrap.no-scroll .strip,.strip-wrap.at-start.at-end .strip{-webkit-mask-image:none;mask-image:none}
-.strip .pcard .poster{box-shadow:0 14px 26px -18px rgba(0,0,0,.85)}
-.strip .pcard:hover .poster{transform:translateY(-3px);box-shadow:0 18px 30px -18px rgba(0,0,0,.9)}
 .strip-btn{position:absolute;top:38%;transform:translateY(-50%);z-index:2;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
   background:rgba(14,20,16,.82);border:1px solid var(--line);color:var(--paper);transition:opacity .25s,background .2s}
 .strip-btn:hover{background:rgba(40,48,42,.95)}
@@ -249,7 +290,7 @@ main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
 .results-head h2{margin:0;font-size:22px;font-weight:300}
 .results-head h2 b{font-weight:800}
 .results{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(440px,100%),1fr));gap:16px}
-.rcard{display:grid;grid-template-columns:128px minmax(0,1fr);gap:18px;padding:14px;border-radius:24px;cursor:pointer;transition:border-color .2s,background .2s}
+.rcard{display:grid;grid-template-columns:128px minmax(0,1fr);gap:18px;padding:14px;border-radius:24px;cursor:pointer;transition:border-color .2s,background .2s;content-visibility:auto;contain-intrinsic-size:auto 222px}
 .rcard:hover{border-color:rgba(255,255,255,.42)}
 .rcard .poster{border-radius:14px}
 .rinfo{min-width:0;display:flex;flex-direction:column;gap:5px;padding:2px 4px 2px 0}
@@ -266,20 +307,22 @@ main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
 
 /* ─── Poster ─── */
 .poster{position:relative;aspect-ratio:2/3;border-radius:16px;overflow:hidden;background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.03));border:1px solid var(--line-soft)}
-.poster img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .45s var(--ease)}
+.poster img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s var(--ease)}
 .poster img.ld{opacity:1}
-@media (prefers-reduced-motion:reduce){.poster img{transition:none}}
-.poster .noimg{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:12px;font-size:13px;font-weight:700;line-height:1.3}
+.poster .noimg{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:12px;font-size:13px;font-weight:700;line-height:1.3;overflow:hidden}
 .poster .noimg svg{width:18px;height:18px;opacity:.6}
+@media (prefers-reduced-motion:reduce){.poster img{transition:none}}
 
 .pcard{cursor:pointer;min-width:0}
-.pcard .poster{transition:transform .35s var(--ease),box-shadow .35s var(--ease);box-shadow:0 20px 40px -24px rgba(0,0,0,.8)}
-.pcard:hover .poster{transform:translateY(-4px);box-shadow:0 30px 50px -24px rgba(0,0,0,.9)}
-.pcard h3{margin:10px 0 0;font-size:14px;font-weight:600;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard .poster-wrap{position:relative}
+.pcard .poster{transition:transform .3s var(--ease);box-shadow:0 18px 32px -22px rgba(0,0,0,.85)}
+@media (hover:hover){.pcard:hover .poster{transform:translateY(-3px)}}
+.pc-meta{height:68px;overflow:hidden}
+.pcard h3{margin:9px 0 0;font-size:14px;font-weight:600;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pcard .sub{margin:2px 0 0;font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pcard .rate{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:var(--dim);min-height:18px}
+.pcard .rate{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:12px;color:var(--dim);min-height:18px;white-space:nowrap}
 .pcard .rate b{color:var(--bloom-soft);font-weight:700}
-.pc-top{position:absolute;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
+.pc-top{position:absolute;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:6px;pointer-events:none}
 .pc-top .pill{background:rgba(8,12,10,.72)}
 .pc-icons{display:flex;gap:4px}
 .pc-icons span{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:rgba(8,12,10,.74)}
@@ -288,14 +331,7 @@ main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
 .pc-saved{position:absolute;right:8px;bottom:8px;width:26px;height:26px;border-radius:50%;background:var(--paper);color:#10140f;display:grid;place-items:center}
 .pc-saved svg{width:14px;height:14px}
 
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:26px 18px}
-.group-title{display:flex;align-items:center;gap:12px;margin:34px 0 16px;font-size:15px}
-.group-title:first-child{margin-top:4px}
-.group-title b{font-weight:800}
-.group-title span{color:var(--dim);font-size:13px}
-.group-title::after{content:"";flex:1;height:1px;background:var(--line-soft)}
-
-/* ─── Stars ─── */
+/* ─── Stars (상세·입력용) ─── */
 .stars{display:inline-flex;--s:14px;vertical-align:middle}
 .st{position:relative;width:var(--s);height:var(--s);flex:none}
 .st svg{width:var(--s);height:var(--s);display:block;fill:rgba(255,255,255,.2)}
@@ -305,15 +341,60 @@ main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
 .stars.md{--s:18px}
 
 /* ─── Library ─── */
-.lib-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin:10px 0 20px}
+.lib-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin:10px 0 18px}
 .lib-head .display{font-size:clamp(30px,4vw,48px)}
 .lib-head p{margin:0;color:var(--muted);font-size:14px}
-.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px;border-radius:24px;margin-bottom:26px}
-.toolbar .lq{flex:1 1 220px;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:999px;background:rgba(0,0,0,.25);border:1px solid var(--line-soft)}
-.toolbar .lq svg{width:15px;height:15px;opacity:.6}
-.toolbar .lq input{flex:1;min-width:0;border:0;background:transparent;outline:none;font-size:13.5px}
-.toolbar .sep{width:1px;height:22px;background:var(--line-soft)}
-.active-filters{display:flex;flex-wrap:wrap;gap:8px;margin:-12px 0 20px;font-size:13px;color:var(--muted);align-items:center}
+.lib-bar{position:sticky;top:calc(var(--tb) + 8px);z-index:30;padding:10px;border-radius:24px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px}
+.lb-row{display:flex;align-items:center;gap:10px}
+.lq{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:999px;background:rgba(0,0,0,.28);border:1px solid var(--line-soft)}
+.lq svg{width:16px;height:16px;opacity:.6;flex:none}
+.lq input{flex:1;min-width:0;border:0;background:transparent;outline:none;font-size:14px}
+.lq input::-webkit-search-cancel-button{display:none}
+.lb-filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.lb-filters .sep{width:1px;height:22px;background:var(--line-soft);flex:none}
+.view-seg button{display:inline-flex;align-items:center;gap:6px}
+.view-seg svg{width:15px;height:15px}
+.active-filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;font-size:13px;color:var(--muted);align-items:center}
+.lib-count{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:2px 2px 14px;font-size:13px;color:var(--dim)}
+.lib-count b{color:var(--paper);font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+/* 가상 스크롤: 화면 근처 행만 DOM 유지 */
+.vl{position:relative;width:100%;contain:layout}
+.vrow{position:absolute;left:0;right:0;contain:layout style}
+.vgrid{display:grid;align-content:start}
+.vhead{display:flex;align-items:flex-end;gap:12px;padding-bottom:12px;font-size:15px}
+.vhead b{font-weight:800}
+.vhead span{color:var(--dim);font-size:13px}
+.vhead::after{content:"";flex:1;height:1px;background:var(--line-soft);margin-bottom:8px}
+.vhead .mstars{width:78px;height:15.6px;align-self:center}
+.lrow{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:16px;align-items:center;height:100%;padding:8px 18px 8px 8px;border-radius:18px;cursor:pointer;
+  background:rgba(255,255,255,.035);border:1px solid var(--line-soft);transition:background .2s,border-color .2s}
+.lrow:hover{background:rgba(255,255,255,.08);border-color:var(--line)}
+.lthumb{width:52px;height:78px;border-radius:9px;overflow:hidden;background:rgba(255,255,255,.07);position:relative}
+.lthumb img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s}
+.lthumb img.ld{opacity:1}
+.lthumb .noimg{position:absolute;inset:0;display:grid;place-items:center}
+.lthumb .noimg span{display:none}
+.lthumb .noimg svg{width:16px;height:16px;opacity:.5}
+.lmain{min-width:0}
+.lmain h3{margin:0;font-size:15.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lmain h3 .yr{font-weight:200;color:var(--muted);margin-left:6px}
+.lmain .sub{margin:3px 0 0;font-size:12.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lmain .rev{margin:4px 0 0;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lside{display:flex;flex-direction:column;align-items:flex-end;gap:5px;font-size:12px;color:var(--dim);white-space:nowrap}
+.lside .rt{display:flex;align-items:center;gap:6px}
+.lside .rt b{color:var(--bloom-soft);font-size:13px}
+.lside .ic{display:flex;gap:4px}
+.lside .ic svg{width:14px;height:14px}
+.fab-top{position:fixed;right:clamp(16px,3vw,36px);bottom:28px;z-index:44;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;
+  background:var(--paper);color:#10140f;box-shadow:0 14px 30px -12px rgba(0,0,0,.8);transition:opacity .25s,transform .25s}
+.fab-top svg{width:20px;height:20px}
+.fab-top.off{opacity:0;transform:translateY(12px);pointer-events:none}
+.loadbox{max-width:560px;margin:30px auto;padding:34px;text-align:center}
+.loadbox h3{margin:0 0 6px;font-size:20px;font-weight:300}
+.loadbox h3 b{font-weight:800}
+.loadbox p{margin:0 0 18px;color:var(--muted);font-size:13.5px;font-variant-numeric:tabular-nums}
+.pbar{height:6px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
+.pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--bloom),var(--bloom-soft));transition:width .3s}
 
 .empty{max-width:560px;margin:40px auto;padding:40px;text-align:center;border-radius:var(--r-card)}
 .empty h3{margin:14px 0 6px;font-size:22px;font-weight:300}
@@ -321,48 +402,98 @@ main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
 .empty p{margin:0 0 20px;color:var(--muted);font-size:14px}
 .empty svg.big{width:40px;height:40px;opacity:.8}
 
-/* ─── Stats ─── */
-.stats-hero{display:grid;grid-template-columns:1.15fr 1fr;gap:18px;margin-bottom:18px}
-.stats-hero .glass{padding:clamp(22px,3vw,36px)}
-.big-count{display:flex;flex-direction:column;justify-content:space-between;min-height:320px}
-.big-count .num{font-size:clamp(80px,11vw,150px);font-weight:200;line-height:.85;letter-spacing:-.05em}
-.big-count .num small{font-size:.22em;font-weight:600;letter-spacing:0;margin-left:10px}
-.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:0}
-.kpi{padding:18px 4px;border-bottom:1px solid var(--line-soft);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px}
-.kpi:nth-child(odd){padding-right:18px;border-right:1px solid var(--line-soft)}
-.kpi:nth-child(even){padding-left:18px}
-.kpi:nth-last-child(-n+2){border-bottom:0}
-.kpi span{font-size:13px;color:var(--muted)}
-.kpi b{font-size:34px;font-weight:300;letter-spacing:-.02em;line-height:1.1}
-.kpi:hover b{color:var(--bloom-soft)}
-.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.stats-grid .glass{padding:clamp(20px,2.6vw,30px)}
-.panel-title{margin:0 0 4px;font-size:19px;font-weight:300}
+/* ─── 내 영화관 ─── */
+.cin-marquee{position:relative;overflow:hidden;isolation:isolate;border-radius:34px;min-height:clamp(420px,56vh,560px);display:flex;flex-direction:column;justify-content:space-between;
+  padding:clamp(22px,3.2vw,44px);border:1px solid var(--line);margin-bottom:16px;background:#0b140f}
+.cin-wall{position:absolute;top:-18%;right:-6%;width:78%;z-index:-2;display:grid;grid-template-columns:repeat(6,1fr);gap:12px;transform:rotate(-8deg);opacity:.62}
+.cin-wall .pw{aspect-ratio:2/3;border-radius:10px;overflow:hidden;background:rgba(255,255,255,.06)}
+.cin-wall img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s}
+.cin-wall img.ld{opacity:1}
+.cin-wall .pw:nth-child(6n+2),.cin-wall .pw:nth-child(6n+4),.cin-wall .pw:nth-child(6n+6){transform:translateY(38%)}
+.cin-marquee::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(90deg,rgba(7,11,9,.97) 0%,rgba(7,11,9,.86) 32%,rgba(7,11,9,.35) 70%,rgba(7,11,9,.2) 100%),linear-gradient(0deg,rgba(7,11,9,.9) 0%,transparent 45%)}
+.cin-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.cin-count{margin-top:36px;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px}
+.cin-count b{font-size:clamp(84px,12.5vw,176px);font-weight:200;line-height:.82;letter-spacing:-.06em;font-variant-numeric:tabular-nums}
+.cin-count span{font-size:clamp(18px,2vw,26px);font-weight:300}
+.cin-count span strong{font-weight:800}
+.cin-lead{margin:18px 0 0;max-width:46ch;font-size:14.5px;color:var(--muted);word-break:keep-all}
+.cin-figs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-top:30px;border-top:1px solid rgba(255,255,255,.22)}
+.cin-fig{padding:16px 14px 2px 0;text-align:left;display:flex;flex-direction:column;gap:3px;min-width:0}
+.cin-fig+.cin-fig{padding-left:16px;border-left:1px solid var(--line-soft)}
+.cin-fig span{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.cin-fig b{font-size:clamp(22px,2.3vw,32px);font-weight:300;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cin-fig b small{font-size:.48em;margin-left:3px;color:var(--muted);font-weight:500}
+button.cin-fig:hover b{color:var(--bloom-soft)}
+.cin-scope{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:4px 2px 16px;align-items:center}
+.cin-scope::-webkit-scrollbar{display:none}
+.cin-scope>span{font-size:13px;color:var(--dim);flex:none;margin-right:4px}
+.cin-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.panel{grid-column:span 6;padding:clamp(20px,2.4vw,28px);min-width:0;content-visibility:auto;contain-intrinsic-size:auto 380px}
+.panel.w12{grid-column:1/-1}.panel.w7{grid-column:span 7}.panel.w5{grid-column:span 5}.panel.w4{grid-column:span 4}.panel.w8{grid-column:span 8}
+.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.panel-title{margin:0;font-size:19px;font-weight:300}
 .panel-title b{font-weight:800}
-.panel-sub{margin:0 0 20px;font-size:13px;color:var(--dim)}
-.rbars{display:grid;grid-template-columns:repeat(11,1fr);gap:8px;align-items:end;height:200px}
-.rbar{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:100%;cursor:pointer}
-.rbar .col{width:100%;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,var(--bloom),rgba(255,106,38,.35));min-height:3px;transition:filter .2s}
-.rbar.none .col{background:rgba(255,255,255,.2)}
-.rbar:hover .col{filter:brightness(1.3)}
-.rbar em{font-style:normal;font-size:12px;font-weight:700}
-.rbar small{font-size:11px;color:var(--dim)}
-.gbars{display:flex;flex-direction:column;gap:9px}
-.gbar{display:grid;grid-template-columns:96px 1fr 40px;align-items:center;gap:12px;cursor:pointer;font-size:13.5px;text-align:left}
+.panel-sub{margin:4px 0 0;font-size:13px;color:var(--dim)}
+.cal-wrap{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:30px;align-items:start}
+.cal-scroll{overflow-x:auto;padding-bottom:8px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+.cal{--c:13px;display:grid;grid-template-rows:16px repeat(7,var(--c));grid-auto-flow:column;grid-auto-columns:var(--c);gap:3px;width:max-content}
+.cal .mo{font-size:10.5px;color:var(--dim);white-space:nowrap;line-height:1}
+.cal i{display:block;width:var(--c);height:var(--c);border-radius:3px;background:rgba(255,255,255,.07)}
+.cal i.pad{background:none}
+.cal i.l1{background:rgba(255,106,38,.34)}.cal i.l2{background:rgba(255,106,38,.58)}.cal i.l3{background:rgba(255,120,50,.85)}.cal i.l4{background:var(--bloom-soft)}
+.cal i[data-action]{cursor:pointer}
+.cal i[data-action]:hover{outline:1.5px solid var(--paper);outline-offset:0}
+.cal-legend{display:flex;align-items:center;gap:4px;margin-top:10px;font-size:11px;color:var(--dim)}
+.cal-legend i{width:11px;height:11px;border-radius:3px;display:block}
+.cal-side{display:grid;gap:0}
+.cal-side div{padding:12px 0;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;color:var(--muted)}
+.cal-side div:last-child{border-bottom:0}
+.cal-side b{font-size:20px;font-weight:300;color:var(--paper);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cal-side b small{font-size:12px;color:var(--dim);margin-left:2px}
+.vbars{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:6px;align-items:end;height:150px;margin-top:22px}
+.vbar{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:100%;min-width:0}
+.vbar .col{width:100%;max-width:44px;border-radius:7px 7px 3px 3px;background:linear-gradient(180deg,var(--bloom),rgba(255,106,38,.3));min-height:3px;transition:filter .2s}
+.vbar.cool .col{background:linear-gradient(180deg,var(--paper),rgba(122,167,199,.35))}
+.vbar.none .col{background:rgba(255,255,255,.2)}
+.vbar.zero .col{background:rgba(255,255,255,.08)}
+button.vbar:hover .col{filter:brightness(1.3)}
+.vbar em{font-style:normal;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.vbar small{font-size:11px;color:var(--dim);white-space:nowrap}
+.tend{display:flex;gap:14px;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--line-soft);font-size:13.5px;color:var(--muted);word-break:keep-all}
+.tend b{color:var(--paper)}
+.tend .gauge{flex:none;width:120px;height:6px;border-radius:9px;background:rgba(255,255,255,.12);position:relative}
+.tend .gauge i{position:absolute;top:-4px;width:14px;height:14px;border-radius:50%;background:var(--bloom);transform:translateX(-50%);box-shadow:0 0 0 3px rgba(255,106,38,.25)}
+.tend .gauge::after{content:"";position:absolute;left:50%;top:-3px;width:1px;height:12px;background:rgba(255,255,255,.5)}
+.gbars{display:flex;flex-direction:column;gap:10px}
+.gbar{display:grid;grid-template-columns:92px minmax(0,1fr) 44px 46px;align-items:center;gap:12px;font-size:13.5px;text-align:left}
+.gbar>span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gbar .track{height:10px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
 .gbar .track i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,rgba(122,167,199,.7),var(--paper))}
 .gbar:hover .track i{background:linear-gradient(90deg,var(--bloom),var(--bloom-soft))}
-.gbar b{text-align:right;font-weight:700}
-.matrix{display:grid;grid-template-columns:auto 1fr 1fr;border-top:1px solid var(--line-soft)}
-.matrix>*{padding:14px 10px;border-bottom:1px solid var(--line-soft);font-size:13.5px}
-.matrix .h{color:var(--dim);font-size:12.5px}
-.matrix button{text-align:left;font-size:26px;font-weight:300}
-.matrix button:hover{color:var(--bloom-soft)}
+.gbar b{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.gbar small{text-align:right;color:var(--bloom-soft);font-size:12px;white-space:nowrap}
+.rank{list-style:none;margin:0;padding:0;counter-reset:r}
+.rank li{counter-increment:r}
+.rank button{width:100%;display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft);text-align:left;font-size:14px}
+.rank li:last-child button{border-bottom:0}
+.rank button::before{content:counter(r);font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.rank button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank button em{font-style:normal;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.rank button:hover span{color:var(--bloom-soft)}
+.ctags{display:flex;flex-wrap:wrap;gap:8px}
+.shelf-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pick{display:grid;grid-template-columns:110px minmax(0,1fr);gap:18px;align-items:center;margin-top:18px;padding:14px;border-radius:22px;border:1px solid var(--bloom-soft);background:rgba(255,106,38,.08);cursor:pointer}
+.pick .poster{border-radius:12px}
+.pick small{color:var(--bloom-soft);font-size:12px}
+.pick h4{margin:4px 0 6px;font-size:20px;font-weight:800;letter-spacing:-.01em}
+.pick p{margin:0;font-size:13px;color:var(--muted)}
+.muted-note{font-size:13px;color:var(--dim);margin:6px 0 0}
 
 /* ─── Modal ─── */
-.modal-root{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:28px 20px;overflow-y:auto}
-.modal-scrim{position:fixed;inset:0;background:rgba(3,6,4,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
-.modal{position:relative;width:min(1180px,100%);border-radius:34px;overflow:hidden;overflow:clip;max-width:100%;background:linear-gradient(150deg,rgba(28,38,32,.78),rgba(12,18,14,.86));animation:pop .35s var(--ease)}
+.modal-root{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:28px 20px;overflow-y:auto;overscroll-behavior:contain}
+.modal-scrim{position:fixed;inset:0;background:rgba(3,6,4,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.modal{position:relative;width:min(1180px,100%);border-radius:34px;overflow:hidden;overflow:clip;max-width:100%;background:linear-gradient(150deg,rgba(28,38,32,.9),rgba(12,18,14,.94));animation:pop .35s var(--ease)}
 @keyframes pop{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.modal{animation:none}}
 .modal-close{position:sticky;top:16px;z-index:5;margin:18px 18px -60px auto;background:rgba(10,16,12,.62)}
@@ -392,7 +523,7 @@ main{padding:22px clamp(16px,3vw,36px) 80px;max-width:1440px;margin:0 auto}
 .cast figcaption b{display:block;font-weight:600}
 .cast figcaption span{color:var(--dim)}
 .loading-line{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin:10px 0}
-.spin{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.2);border-top-color:var(--paper);animation:spin .8s linear infinite}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.2);border-top-color:var(--paper);animation:spin .8s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 .errbox{padding:14px 16px;border:1px solid rgba(255,123,114,.45);border-radius:14px;color:#ffd1cd;font-size:13.5px;display:flex;gap:12px;align-items:center;margin:10px 0}
 .errbox p{margin:0;flex:1}
@@ -439,15 +570,18 @@ input.input[type="date"]::-webkit-date-and-time-value{text-align:left}
 .test-out{margin-top:16px;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
 .test-out .ok{color:var(--ok)}
 .test-out .bad{color:var(--danger)}
+.sblock{margin-top:26px;padding-top:22px;border-top:1px solid var(--line-soft)}
+.sblock h3{margin:0 0 6px;font-size:16px;font-weight:700}
+.sblock p{margin:0 0 14px;font-size:13.5px;color:var(--muted);max-width:62ch}
 .howto{margin:26px 0 0;padding:0 0 0 20px;color:var(--muted);font-size:13.5px;line-height:1.8}
 details.sql{margin-top:20px;border:1px solid var(--line-soft);border-radius:16px;overflow:hidden}
-details.sql summary{padding:14px 18px;cursor:pointer;font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+details.sql summary{padding:14px 18px;cursor:pointer;font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:10px}
 details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-size:12px;line-height:1.55;background:rgba(0,0,0,.35);color:#d8e3dc;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
 /* ─── Toasts ─── */
 #toasts{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:90;display:flex;flex-direction:column;gap:8px;align-items:center;width:min(560px,calc(100% - 24px));pointer-events:none}
-.toast{pointer-events:auto;display:flex;align-items:center;gap:12px;padding:12px 16px 12px 18px;border-radius:999px;font-size:14px;background:rgba(18,26,21,.88);
-  -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--line);box-shadow:0 20px 40px -20px #000;animation:pop .3s var(--ease)}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:12px;padding:12px 16px 12px 18px;border-radius:999px;font-size:14px;background:rgba(18,26,21,.94);
+  border:1px solid var(--line);box-shadow:0 20px 40px -20px #000;animation:pop .3s var(--ease)}
 .toast.error{border-color:rgba(255,123,114,.6);border-radius:18px}
 .toast.ok i{background:var(--ok)}
 .toast.error i{background:var(--danger)}
@@ -461,10 +595,23 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
 @media (max-width:1180px){
   .d-body{grid-template-columns:220px minmax(0,1fr)}
   .record{grid-column:1 / -1;position:static}
+  .panel.w7,.panel.w5,.panel.w4,.panel.w8,.panel{grid-column:span 6}
+  .panel.w12{grid-column:1/-1}
+  .cal-wrap{grid-template-columns:minmax(0,1fr)}
+  .cal-side{grid-template-columns:repeat(4,minmax(0,1fr));gap:0 18px}
+  .cal-side div{flex-direction:column;align-items:flex-start;gap:2px;border-bottom:0}
+}
+@media (max-width:1000px){
+  .hero-main{max-width:none}
+  .hero-next{width:auto;max-width:280px}
 }
 @media (max-width:960px){
   .results{grid-template-columns:minmax(0,1fr)}
-  .stats-hero,.stats-grid{grid-template-columns:1fr}
+  .panel,.panel.w7,.panel.w5,.panel.w4,.panel.w8{grid-column:1/-1}
+  .cin-figs{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cin-fig:nth-child(4){padding-left:0;border-left:0}
+  .cin-fig:nth-child(n+4){border-top:1px solid var(--line-soft)}
+  .cin-wall{width:100%;right:-20%;opacity:.45}
 }
 @media (max-width:760px){
   body{font-size:14px}
@@ -472,29 +619,72 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
   .brand span{font-size:16px}
   .sync span{display:none}
   .tabs{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));margin:0;z-index:45;justify-content:space-around;padding:6px;border-radius:999px;
-    background:rgba(12,18,14,.78);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--line)}
+    background:rgba(12,18,14,.92);border:1px solid var(--line)}
   .tab{flex:1;justify-content:center;flex-direction:column;gap:1px;height:52px;font-size:11px;padding:0 6px;position:relative}
-  .tab em{position:absolute;top:4px;right:calc(50% - 26px);min-width:17px;height:17px;font-size:10px}
+  .tab em{position:absolute;top:3px;left:calc(50% + 6px);min-width:17px;height:17px;font-size:9.5px;padding:0 5px}
   main{padding:14px 14px 110px}
   #toasts{bottom:calc(90px + env(safe-area-inset-bottom))}
-  .searchbar{flex-wrap:wrap;border-radius:26px;padding:8px 8px 8px 16px;margin-bottom:18px}
+  .fab-top{bottom:calc(92px + env(safe-area-inset-bottom));right:16px;width:44px;height:44px}
+  .searchbar{flex-wrap:wrap;border-radius:26px;padding:8px 8px 8px 16px;margin-bottom:16px}
   .searchbar .seg{width:100%;display:grid;grid-template-columns:repeat(3,1fr)}
   .searchbar .kbd{display:none}
-  .hero{min-height:0}
-  .hero .display{padding-top:40px}
-  .hero .display.hero-display{font-size:clamp(24px,7.2vw,32px);margin-top:18px;padding-top:0}
-  .hero .hero-foot{margin-top:22px}
-  .hero.has-art .hero-foot{max-width:none}
-  .hero-shade{background:linear-gradient(180deg,rgba(7,11,9,.62) 0%,rgba(7,11,9,.8) 55%,rgba(7,11,9,.92) 100%)}
+
+  /* 메인 박스: 세로로 더 크게, 컨트롤은 손가락 크기 */
+  .hero{min-height:max(520px,calc(100svh - 290px));border-radius:26px;margin-bottom:30px}
+  .hero-art img{object-position:center 22%}
   .hero-art.poster-only img{width:100%;-webkit-mask-image:none;mask-image:none}
-  .hero-cap{position:relative;right:auto;bottom:auto;margin-top:16px;align-self:flex-start;max-width:100%}
-  .hero-cap-main{max-width:calc(100vw - 110px)}
-  .hero-foot{grid-template-columns:1fr auto;gap:10px}
-  .hero-foot>:last-child{display:none}
-  .rcard{grid-template-columns:96px minmax(0,1fr);gap:12px;padding:10px}
+  .hero-shade{background:linear-gradient(180deg,rgba(7,11,9,.55) 0%,rgba(7,11,9,.05) 22%,rgba(7,11,9,.2) 42%,rgba(7,11,9,.86) 68%,rgba(7,11,9,.97) 100%)}
+  .hero-top{padding:16px 16px 0}
+  .hero-slogan{display:none}
+  .hero-main{padding:30px 18px 18px}
+  .hero-title{font-size:clamp(30px,8.6vw,42px);-webkit-line-clamp:2}
+  .hero-orig{font-size:14px}
+  .hero-meta{font-size:13px;gap:4px 10px}
+  .hero-meta span+span::before{margin-right:9px}
+  .hero-quote{font-size:14px;margin-top:14px}
+  .hero-actions{margin-top:18px;gap:8px}
+  .hero-actions .btn{height:44px;padding:0 18px;flex:1}
+  .hero-dock{grid-template-columns:auto minmax(0,1fr);gap:12px 12px;padding:14px 16px 16px}
+  .hero-prog-wrap{grid-column:1/-1;order:-1;gap:8px}
+  .hero-ctrl{gap:8px}
+  .hc{width:48px;height:48px}
+  .hc.play{width:54px;height:54px}
+  .hero-next{width:auto;max-width:none;min-width:0;padding:6px 12px 6px 6px;gap:10px}
+  .hero-next .nthumb{width:36px;height:54px;border-radius:7px}
+  .hero-next b{font-size:13.5px}
+  .hero-next em{display:none}
+  .hero-intro{padding:30px 18px}
+  .hero-intro .display{font-size:clamp(30px,9vw,44px)}
+
+  .rcard{grid-template-columns:96px minmax(0,1fr);gap:12px;padding:10px;contain-intrinsic-size:auto 170px}
   .rinfo h3{font-size:16px}
   .rinfo .ov{-webkit-line-clamp:2}
-  .grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:20px 12px}
+  .strip{grid-auto-columns:112px;gap:12px}
+  .pc-meta{height:62px}
+  .pcard h3{font-size:13px}
+  .pcard .sub{font-size:11px}
+  .pcard .rate{font-size:11px}
+  .pcard .mstars{width:52px;height:10.4px}
+  .pc-top{top:6px;left:6px;right:6px}
+  .pc-icons span{width:21px;height:21px}
+  .poster{border-radius:12px}
+
+  .lib-head{margin:4px 0 12px}
+  .lib-head p{font-size:12.5px}
+  .lib-bar{top:calc(var(--tb) + 6px);padding:8px;border-radius:20px;margin:0 -4px 12px;gap:8px}
+  .lb-row{gap:6px}
+  .lb-row .select{max-width:118px;padding-left:12px;padding-right:26px;background-position:right 9px center}
+  .view-seg button{padding:0 9px}
+  .view-seg button span{display:none}
+  .lb-filters{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -8px;padding:0 8px;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+  .lb-filters::-webkit-scrollbar{display:none}
+  .lb-filters .select{max-width:150px}
+  .lrow{grid-template-columns:46px minmax(0,1fr) auto;gap:12px;padding:6px 12px 6px 6px;border-radius:14px}
+  .lthumb{width:46px;height:69px;border-radius:8px}
+  .lmain h3{font-size:14px}
+  .lmain .rev{display:none}
+  .lside .mstars{display:none}
+
   .modal-root{padding:0}
   .modal{border-radius:0;min-height:100%;border:0;width:100%}
   .modal-close{top:10px;margin:10px 10px -52px auto}
@@ -507,17 +697,50 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
   .d-score{margin:0}
   .d-hero{height:260px}
   .stars.lg{--s:40px}
-  .kpi b{font-size:28px}
-  .rbars{height:160px;gap:4px}
-  .gbar{grid-template-columns:78px 1fr 30px}
+
+  .cin-marquee{border-radius:26px;min-height:0;padding:20px 18px}
+  .cin-wall{grid-template-columns:repeat(4,1fr);width:130%;right:-45%;top:-10%;gap:8px;opacity:.4}
+  .cin-count{margin-top:24px}
+  .cin-figs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cin-fig,.cin-fig+.cin-fig{padding:14px 10px 12px 0;border-left:0}
+  .cin-fig:nth-child(even){padding-left:14px;border-left:1px solid var(--line-soft)}
+  .cin-fig:nth-child(n+3){border-top:1px solid var(--line-soft)}
+  .cin-fig:nth-child(4){padding-left:14px;border-left:1px solid var(--line-soft)}
+  .cin-fig:last-child:nth-child(odd){grid-column:1/-1;padding-left:0;border-left:0}
+  .cin-grid{gap:12px}
+  .panel{border-radius:22px;padding:18px 16px}
+  .cal{--c:11px;gap:2.5px}
+  .cal-side{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vbars{height:130px;gap:4px}
+  .vbar small{font-size:10px}
+  .vbar em{font-size:10.5px}
+  .gbar{grid-template-columns:72px minmax(0,1fr) 34px 40px;gap:8px;font-size:13px}
+  .tend{flex-direction:column;align-items:flex-start}
+  .pick{grid-template-columns:84px minmax(0,1fr);gap:14px}
+}
+
+/* ─── 터치 기기 성능 모드: 스크롤마다 다시 계산되는 blur/블렌드 제거 ─── */
+@media (hover:none) and (pointer:coarse){
+  .glass{-webkit-backdrop-filter:none;backdrop-filter:none;background:linear-gradient(140deg,rgba(38,50,43,.9),rgba(18,26,21,.92) 62%);box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
+  .topbar::before{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(9,15,12,.94)}
+  .modal-scrim{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(3,6,4,.8)}
+  .modal{background:linear-gradient(150deg,#18231d,#0d1410)}
+  .lib-bar{background:rgba(14,21,17,.96)}
+  #ambient .grain{display:none}
+  .strip,.strip-wrap.at-start .strip,.strip-wrap.at-end .strip{-webkit-mask-image:none;mask-image:none}
+  .poster img,.lthumb img,.cin-wall img{transition:none}
+  .pcard .poster{box-shadow:none}
+  .hero-art img{transition:opacity .6s var(--ease);transform:none}
+  .hero-art img.ld{transform:none}
 }
 </style>
+
 </head>
 <body>
 
-<div id="ambient" aria-hidden="true"><div class="bg" id="bgA"></div><div class="bg" id="bgB"></div><div class="veil"></div><div class="grain"></div></div>
+<div id="ambient" aria-hidden="true"><canvas id="bgA" width="64" height="40"></canvas><canvas id="bgB" width="64" height="40"></canvas><div class="veil"></div><div class="grain"></div></div>
 
-<header class="topbar">
+<header class="topbar" id="topbar">
   <a class="brand" href="#search" data-action="nav" data-view="search" aria-label="MY CINEMA 홈">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 2.5v19M3.8 7.25l16.4 9.5M3.8 16.75l16.4-9.5"/></svg>
     <span><span class="l">MY </span><b>CINEMA</b></span>
@@ -558,23 +781,30 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
       <h1 class="display"><span class="l">MY</span><b>COLLECTION</b></h1>
       <p id="libSummary"></p>
     </div>
-    <div class="toolbar glass">
-      <label class="lq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="libQ" type="search" placeholder="내 목록에서 찾기 (제목·감독·배우)"></label>
-      <div class="seg" data-filter="type"><button data-action="lf" data-k="type" data-v="all" class="on">전체</button><button data-action="lf" data-k="type" data-v="movie">영화</button><button data-action="lf" data-k="type" data-v="tv">드라마</button></div>
-      <div class="seg" data-filter="status"><button data-action="lf" data-k="status" data-v="all" class="on">전체</button><button data-action="lf" data-k="status" data-v="watched">본 작품</button><button data-action="lf" data-k="status" data-v="want">보고 싶은</button></div>
-      <select class="select" id="fGenre" aria-label="장르"><option value="">모든 장르</option></select>
-      <select class="select" id="fRating" aria-label="별점"></select>
-      <button class="chip" data-action="lf-toggle" data-k="liked"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg>좋아요</button>
-      <button class="chip" data-action="lf-toggle" data-k="favorite"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.6l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.4 6.1 20.7l1.3-6.6L2.5 9.5l6.6-.8z"/></svg>즐겨찾기</button>
-      <span class="sep"></span>
-      <select class="select" id="fSort" aria-label="정렬">
-        <option value="recent">최신 감상순</option>
-        <option value="recent_asc">처음 감상순</option>
-        <option value="added">최근 추가순</option>
-        <option value="title">제목순</option>
-        <option value="rating">별점순</option>
-        <option value="release">개봉일순</option>
-      </select>
+    <div class="lib-bar glass" id="libBar">
+      <div class="lb-row">
+        <label class="lq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="libQ" type="search" placeholder="제목·감독·배우·리뷰로 찾기" enterkeyhint="search"></label>
+        <select class="select" id="fSort" aria-label="정렬">
+          <option value="recent">최신 감상순</option>
+          <option value="recent_asc">처음 감상순</option>
+          <option value="added">최근 추가순</option>
+          <option value="title">제목순</option>
+          <option value="rating">별점순</option>
+          <option value="release">개봉일순</option>
+        </select>
+        <div class="seg sm view-seg" role="group" aria-label="보기 방식">
+          <button data-action="lmode" data-v="grid" aria-label="포스터로 보기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg><span>포스터</span></button>
+          <button data-action="lmode" data-v="list" aria-label="목록으로 보기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6h11M9 12h11M9 18h11"/><rect x="3.5" y="4.5" width="3" height="3" rx=".8"/><rect x="3.5" y="10.5" width="3" height="3" rx=".8"/><rect x="3.5" y="16.5" width="3" height="3" rx=".8"/></svg><span>목록</span></button>
+        </div>
+      </div>
+      <div class="lb-filters">
+        <div class="seg sm" data-filter="type"><button data-action="lf" data-k="type" data-v="all" class="on">전체</button><button data-action="lf" data-k="type" data-v="movie">영화</button><button data-action="lf" data-k="type" data-v="tv">드라마</button></div>
+        <div class="seg sm" data-filter="status"><button data-action="lf" data-k="status" data-v="all" class="on">전체</button><button data-action="lf" data-k="status" data-v="watched">본 작품</button><button data-action="lf" data-k="status" data-v="want">보고 싶은</button></div>
+        <select class="select" id="fGenre" aria-label="장르"><option value="">모든 장르</option></select>
+        <select class="select" id="fRating" aria-label="별점"></select>
+        <button class="chip" data-action="lf-toggle" data-k="liked"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg>좋아요</button>
+        <button class="chip" data-action="lf-toggle" data-k="favorite"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.6l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.4 6.1 20.7l1.3-6.6L2.5 9.5l6.6-.8z"/></svg>즐겨찾기</button>
+      </div>
     </div>
     <div class="active-filters" id="activeFilters" hidden></div>
     <div id="libBody"></div>
@@ -585,6 +815,8 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
     <div id="statsBody"></div>
   </section>
 </main>
+
+<button class="fab-top off" id="fabTop" data-action="to-top" aria-label="맨 위로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m6 14 6-6 6 6"/></svg></button>
 
 <!-- 상세 모달 -->
 <div class="modal-root" id="detailRoot" hidden>
@@ -620,13 +852,23 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
     </div>
     <div class="test-out" id="testOut"></div>
 
+    <div class="sblock">
+      <h3>데이터와 속도</h3>
+      <p id="cacheInfo">내 목록은 이 기기에 저장해 두고, 앱을 열 때 바뀐 부분만 Supabase에서 받아옵니다.</p>
+      <div class="sactions" style="margin-top:0">
+        <button class="btn sm" data-action="full-resync">전체 다시 동기화</button>
+        <button class="btn sm" data-action="people-index">배우 검색 색인 채우기</button>
+      </div>
+      <div class="test-out" id="maintOut"></div>
+    </div>
+
     <ol class="howto">
       <li>TMDB에 로그인 → 설정 → API에서 키를 발급받습니다.</li>
-      <li>Supabase 프로젝트를 만들고 SQL Editor에서 아래 SQL을 한 번 실행합니다.</li>
+      <li>Supabase 프로젝트를 만들고 SQL Editor에서 아래 SQL을 한 번 실행합니다. 이미 쓰고 있다면 같은 SQL을 한 번 더 실행하면 새 열(people)과 인덱스만 추가됩니다.</li>
       <li>Project Settings → API에서 Project URL과 anon(public) 키를 복사해 입력합니다.</li>
     </ol>
     <details class="sql">
-      <summary>Supabase 테이블 생성 SQL <button class="btn sm" data-action="copy-sql" type="button">SQL 복사</button></summary>
+      <summary>Supabase 테이블 생성·업그레이드 SQL <button class="btn sm" data-action="copy-sql" type="button">SQL 복사</button></summary>
       <pre id="sqlPre"></pre>
     </details>
   </div>
@@ -634,7 +876,7 @@ details.sql pre{margin:0;padding:16px 18px;max-height:340px;overflow:auto;font-s
 
 <div id="toasts" aria-live="polite"></div>
 
-<script type="text/plain" id="schemaSql">-- MY CINEMA · Supabase 스키마 (SQL Editor에서 한 번 실행)
+<script type="text/plain" id="schemaSql">-- MY CINEMA · Supabase 스키마 (SQL Editor에서 실행 · 여러 번 실행해도 안전)
 -- titles  : TMDB에서 가져온 작품 기본정보 캐시 (TMDB ID 기준)
 -- entries : 내 목록 + 개인 감상 기록
 
@@ -665,6 +907,9 @@ create table if not exists public.titles (
   unique (tmdb_id, media_type)
 );
 
+-- v2: 목록 검색용 인물 이름(감독+출연진) 한 줄 — 수천 편에서도 가볍게 배우 검색
+alter table public.titles add column if not exists people text;
+
 create table if not exists public.entries (
   title_id    text primary key references public.titles(id) on delete cascade,
   status      text not null default 'watched' check (status in ('watched','want')),
@@ -678,6 +923,8 @@ create table if not exists public.entries (
 );
 
 create index if not exists entries_updated_idx on public.entries (updated_at desc);
+create index if not exists entries_watched_idx on public.entries (watched_on desc);
+create index if not exists titles_fetched_idx  on public.titles (fetched_at desc);
 
 alter table public.titles  enable row level security;
 alter table public.entries enable row level security;
@@ -688,8 +935,8 @@ create policy "personal_titles_all"  on public.titles  for all to anon, authenti
 create policy "personal_entries_all" on public.entries for all to anon, authenticated using (true) with check (true);
 
 grant select, insert, update, delete on public.titles, public.entries to anon, authenticated;
+notify pgrst, 'reload schema';
 </script>
-
 <script>
 (() => {
 'use strict';
@@ -704,19 +951,31 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const IMG = (p, size = 'w342') => p ? `https://image.tmdb.org/t/p/${size}${p}` : '';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const yearOf = d => (d && /^\d{4}/.test(d)) ? d.slice(0, 4) : '';
+const yearOf = d => (d && /^\d{4}/.test(d)) ? String(d).slice(0, 4) : '';
 const fmtDate = d => d ? String(d).slice(0, 10).replace(/-/g, '.') : '';
 const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 const typeLabel = t => t === 'tv' ? '드라마' : '영화';
 const statusLabel = s => s === 'want' ? '보고 싶은 작품' : '본 작품';
+const num = n => Number(n || 0).toLocaleString('ko-KR');
+const norm = s => String(s || '').toLowerCase().replace(/\s+/g, '');
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const coll = new Intl.Collator('ko');
+const COARSE = matchMedia('(hover:none) and (pointer:coarse)').matches;
+const mqMobile = matchMedia('(max-width:760px)');
+const SAVE_DATA = !!(navigator.connection && navigator.connection.saveData);
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* 썸네일 크기: 모바일/데이터 절약 시 w185 (w342 대비 약 1/3 용량) */
+const THUMB = () => (mqMobile.matches || SAVE_DATA) ? 'w185' : 'w342';
 
 const regionDN = (() => { try { return new Intl.DisplayNames(['ko'], { type: 'region' }); } catch { return null; } })();
 const langDN = (() => { try { return new Intl.DisplayNames(['ko'], { type: 'language' }); } catch { return null; } })();
-const regionName = c => { if (!c) return ''; try { return regionDN ? regionDN.of(c) : c; } catch { return c; } };
+const _rn = new Map();
+const regionName = c => { if (!c) return ''; if (_rn.has(c)) return _rn.get(c); let v = c; try { v = regionDN ? regionDN.of(c) : c; } catch {} _rn.set(c, v); return v; };
 const langName = c => { if (!c || c === 'xx') return ''; try { return langDN ? langDN.of(c) : c; } catch { return c; } };
 
-class AppError extends Error { constructor(msg, kind = 'general') { super(msg); this.kind = kind; } }
+class AppError extends Error { constructor(msg, kind = 'general', code = '', raw = '') { super(msg); this.kind = kind; this.code = code; this.raw = raw; } }
 
 const ICON = {
   star: '<svg viewBox="0 0 24 24"><path d="M12 2.6l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.4 6.1 20.7l1.3-6.6L2.5 9.5l6.6-.8z"/></svg>',
@@ -727,8 +986,11 @@ const ICON = {
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
   asterisk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 2.5v19M3.8 7.25l16.4 9.5M3.8 16.75l16.4-9.5"/></svg>',
   arrow: '<svg viewBox="0 0 26 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M0 6h24M19 1l5 5-5 5"/></svg>',
-  chevL: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 6-6 6 6 6"/></svg>',
-  chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 6 6 6-6 6"/></svg>',
+  chevL: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m15 6-6 6 6 6"/></svg>',
+  chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
+  dice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>',
   film: '<svg class="big" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4M3 12h18"/></svg>'
 };
 
@@ -769,7 +1031,7 @@ async function tmdb(path, params = {}) {
 }
 
 /* ════════════ Supabase REST ════════════ */
-async function sb(path, { method = 'GET', body, prefer } = {}) {
+async function sb(path, { method = 'GET', body, prefer, withHeaders = false } = {}) {
   const c = cfg();
   if (!c.sbUrl || !c.sbKey) throw new AppError('Supabase URL과 Anon Key가 없습니다. 설정에서 입력하세요.', 'config');
   const headers = { apikey: c.sbKey, 'Content-Type': 'application/json', Accept: 'application/json' };
@@ -783,39 +1045,114 @@ async function sb(path, { method = 'GET', body, prefer } = {}) {
   if (!res.ok) {
     const code = data && data.code || '';
     const m = (data && (data.message || data.msg || data.error)) || res.statusText;
-    if (code === 'PGRST205' || code === '42P01' || /Could not find the table|does not exist/i.test(m))
-      throw new AppError('Supabase에 테이블이 없습니다. 설정의 SQL을 SQL Editor에서 실행하세요.', 'schema');
-    if (code === 'PGRST204' || /column/i.test(m) && /schema cache|not find/i.test(m))
-      throw new AppError('Supabase 테이블 구조가 다릅니다. 설정의 최신 SQL로 테이블을 다시 만드세요.', 'schema');
+    if (code === 'PGRST205' || code === '42P01' || /Could not find the table|relation .* does not exist/i.test(m))
+      throw new AppError('Supabase에 테이블이 없습니다. 설정의 SQL을 SQL Editor에서 실행하세요.', 'schema', code, m);
+    if (code === 'PGRST204' || code === '42703' || /column/i.test(m) && /schema cache|not find|does not exist/i.test(m))
+      throw new AppError('Supabase 테이블 구조가 다릅니다. 설정의 최신 SQL을 SQL Editor에서 실행하세요.', 'schema', code, m);
     if (res.status === 401 || res.status === 403 || code === '42501' || /row-level security|JWT|api key/i.test(m))
-      throw new AppError('Supabase 권한 오류입니다. Anon Key와 RLS 정책(설정의 SQL)을 확인하세요.', 'auth');
-    throw new AppError(`Supabase 저장 오류 (${res.status}): ${m}`);
+      throw new AppError('Supabase 권한 오류입니다. Anon Key와 RLS 정책(설정의 SQL)을 확인하세요.', 'auth', code, m);
+    throw new AppError(`Supabase 오류 (${res.status}): ${m}`, 'general', code, m);
   }
-  return data;
+  return withHeaders ? { data, headers: res.headers } : data;
 }
 
+/* 페이지 단위로 전부 받기 — Supabase는 한 번에 최대 1000행만 돌려주므로 수천~수만 편을 위해 필수 */
+const PAGE = 1000;
+async function sbAll(path, onProg) {
+  const sep = path.includes('?') ? '&' : '?';
+  const first = await sb(`${path}${sep}limit=${PAGE}&offset=0`, { prefer: 'count=exact', withHeaders: true });
+  const rows = Array.isArray(first.data) ? first.data : [];
+  const cr = first.headers.get('content-range') || '';
+  const total = Number(cr.split('/')[1]);
+  const step = rows.length;
+  onProg && onProg(rows.length, Number.isFinite(total) ? total : 0);
+  if (!step) return rows;
+  if (Number.isFinite(total) && total > step) {
+    const offs = []; for (let o = step; o < total; o += step) offs.push(o);
+    const out = new Array(offs.length); let i = 0, done = rows.length;
+    const worker = async () => {
+      while (i < offs.length) {
+        const k = i++;
+        const d = await sb(`${path}${sep}limit=${step}&offset=${offs[k]}`);
+        out[k] = Array.isArray(d) ? d : []; done += out[k].length; onProg && onProg(done, total);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, offs.length) }, worker));
+    for (const p of out) for (const r of p) rows.push(r);
+  } else if (!Number.isFinite(total)) {
+    let off = step;
+    for (;;) {
+      const d = await sb(`${path}${sep}limit=${step}&offset=${off}`);
+      if (!Array.isArray(d) || !d.length) break;
+      for (const r of d) rows.push(r);
+      off += d.length; onProg && onProg(rows.length, 0);
+      if (d.length < step) break;
+    }
+  }
+  return rows;
+}
+
+/* ════════════ 기기 캐시 (IndexedDB) ════════════ */
+const Store = (() => {
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    if (!('indexedDB' in window)) return rej(new Error('no idb'));
+    const r = indexedDB.open('mycinema', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }).catch(() => null));
+  const run = async (mode, fn) => {
+    const db = await open(); if (!db) return null;
+    return new Promise(res => {
+      try {
+        const t = db.transaction('kv', mode); const req = fn(t.objectStore('kv'));
+        t.oncomplete = () => res(req ? req.result : null); t.onerror = t.onabort = () => res(null);
+      } catch { res(null); }
+    });
+  };
+  return { get: k => run('readonly', s => s.get(k)), set: (k, v) => run('readwrite', s => s.put(v, k)), del: k => run('readwrite', s => s.delete(k)) };
+})();
+const CACHE_VER = 2;
+const cacheKey = () => 'lib:' + cfg().sbUrl;
+
 /* ════════════ 상태 ════════════ */
-const RECENT_ORDER_KEY = 'mycinema.recentOrder';
 const state = {
-  recentOrder: (() => { try { return localStorage.getItem(RECENT_ORDER_KEY) === 'asc' ? 'asc' : 'desc'; } catch { return 'desc'; } })(),
-  heroId: null,
-  heroNextAt: 0,
+  recentOrder: lsGet('mycinema.recentOrder', 'desc') === 'asc' ? 'asc' : 'desc',
   view: 'search',
-  lib: { status: 'idle', error: null },
-  byId: new Map(),          // title_id → entry row + .title
+  lib: { status: 'idle', error: null, progress: [0, 0] },
+  libVer: 0,
+  byId: new Map(),          // title_id → entry row + .title(가벼운 작품정보)
   genres: { movie: {}, tv: {} },
   seeds: new Map(),         // 검색·트렌딩 결과 (모달 즉시 표시용)
   trending: { status: 'idle', items: [] },
   search: { q: '', type: 'all', page: 0, totalPages: 0, totalResults: 0, results: [], status: 'idle', error: null, token: 0, more: false },
-  filters: { q: '', type: 'all', status: 'all', genre: '', rating: '', liked: false, favorite: false, sort: 'recent' },
-  detail: null,
-  ambientPath: ''
+  filters: { q: '', type: 'all', status: 'all', genre: '', rating: '', liked: false, favorite: false, sort: 'recent', period: '', decade: '', country: '' },
+  libMode: lsGet('mycinema.libMode', 'grid') === 'list' ? 'list' : 'grid',
+  stats: { scope: 'all', shelf: 'top', pick: null },
+  sync: { token: 0, busy: false, entriesAt: '', titlesAt: '', lastAt: 0 },
+  scroll: {},
+  detail: null
 };
 
 /* ════════════ 데이터 변환 ════════════ */
 const TITLE_COLS = ['id', 'tmdb_id', 'media_type', 'title', 'original_title', 'original_language', 'release_date', 'end_date', 'poster_path', 'backdrop_path', 'genres', 'countries', 'runtime', 'seasons', 'episodes', 'directors', 'cast_members', 'overview', 'tagline', 'status_text', 'vote_average', 'vote_count', 'fetched_at'];
+/* 목록용 가벼운 열 — 줄거리·출연진 전체는 상세 화면을 열 때만 받음 */
+const LIGHT_COLS = ['id', 'tmdb_id', 'media_type', 'title', 'original_title', 'original_language', 'release_date', 'end_date', 'poster_path', 'backdrop_path', 'genres', 'countries', 'runtime', 'seasons', 'episodes', 'directors', 'vote_average', 'fetched_at'];
+const ENTRY_COLS = 'title_id,status,rating,watched_on,review,liked,favorite,created_at,updated_at';
+let HAS_PEOPLE = (() => { const v = lsGet('mycinema.people', ''); return v === '1' ? true : v === '0' ? false : null; })();
+const setHasPeople = v => { HAS_PEOPLE = v; lsSet('mycinema.people', v ? '1' : '0'); };
+const isPeopleErr = e => e && e.kind === 'schema' && /people/i.test(e.raw || '');
+const titleCols = () => LIGHT_COLS.join(',') + (HAS_PEOPLE !== false ? ',people' : '');
+
 const pickTitle = t => Object.fromEntries(TITLE_COLS.map(k => [k, t[k] === undefined ? null : t[k]]));
 const hasFull = t => !!(t && t.fetched_at && Array.isArray(t.cast_members) && Array.isArray(t.directors));
+const peopleOf = t => [...(t.directors || []), ...(t.cast_members || [])].map(p => p && p.name).filter(Boolean).join(' | ');
+function lightTitle(t) {
+  const o = {}; for (const k of LIGHT_COLS) o[k] = t[k] === undefined ? null : t[k];
+  o.people = t.people || (Array.isArray(t.cast_members) ? peopleOf(t) : '') || null;
+  return o;
+}
 
 function normResult(r, type) {
   const t = {
@@ -830,6 +1167,7 @@ function normResult(r, type) {
     overview: r.overview || '', vote_average: r.vote_average, vote_count: r.vote_count
   };
   state.seeds.set(t.id, t);
+  if (state.seeds.size > 600) state.seeds.delete(state.seeds.keys().next().value);
   return t;
 }
 
@@ -873,7 +1211,14 @@ async function fetchTitle(type, id) {
 
 async function cacheTitle(t) {
   if (!sbReady()) return;
-  await sb('titles?on_conflict=id', { method: 'POST', body: [pickTitle(t)], prefer: 'resolution=merge-duplicates,return=minimal' });
+  const row = pickTitle(t);
+  if (HAS_PEOPLE !== false) row.people = peopleOf(t) || null;
+  const send = () => sb('titles?on_conflict=id', { method: 'POST', body: [row], prefer: 'resolution=merge-duplicates,return=minimal' });
+  try { await send(); if (HAS_PEOPLE === null && 'people' in row) setHasPeople(true); }
+  catch (e) {
+    if ('people' in row && isPeopleErr(e)) { setHasPeople(false); delete row.people; await send(); }
+    else throw e;
+  }
 }
 
 async function loadGenres() {
@@ -885,17 +1230,104 @@ async function loadGenres() {
   } catch { /* 장르 이름이 없어도 검색은 동작 */ }
 }
 
-/* ════════════ 내 목록 로드 ════════════ */
-async function loadLibrary() {
+/* ════════════ 내 목록: 적재 · 파생값 ════════════ */
+function prep(r) {
+  r.rating = r.rating == null ? null : Number(r.rating);
+  const w = r.watched_on ? String(r.watched_on).slice(0, 10) : '';
+  r.watched_on = w || null;
+  const t = r.title;
+  r._wk = (w || String(r.updated_at || '').slice(0, 10)) + String(r.updated_at || '');
+  r._ry = yearOf(t.release_date);
+  r._hay = norm([t.title, t.original_title, t.people || (t.directors || []).map(p => p && p.name).join(' '), r.review].join(' '));
+  return r;
+}
+const stripRow = e => ({ title_id: e.title_id, status: e.status, rating: e.rating, watched_on: e.watched_on, review: e.review, liked: e.liked, favorite: e.favorite, created_at: e.created_at, updated_at: e.updated_at, title: e.title });
+function putEntry(r, bump = true) {
+  if (!r || !r.title) return;
+  r.title = lightTitle(r.title);
+  state.byId.set(r.title_id, prep(r));
+  if (bump) { state.libVer++; persist(); }
+}
+function delEntry(id) { if (state.byId.delete(id)) { state.libVer++; persist(); } }
+function ingestRows(rows) {
+  state.byId = new Map();
+  for (const r of rows) if (r && r.title) state.byId.set(r.title_id, prep(r));
+  state.libVer++;
+}
+/* 같은 libVer 동안은 계산 결과 재사용 */
+const memo = fn => { let k = null, v; return (...a) => { const key = state.libVer + '|' + JSON.stringify(a); if (key !== k) { k = key; v = fn(...a); } return v; }; };
+const allEntries = memo(() => [...state.byId.values()]);
+
+const persist = debounce(() => {
+  if (state.lib.status !== 'ready' || !sbReady()) return;
+  const rows = []; state.byId.forEach(e => rows.push(stripRow(e)));
+  Store.set(cacheKey(), { v: CACHE_VER, rows, entriesAt: state.sync.entriesAt, titlesAt: state.sync.titlesAt, savedAt: Date.now() });
+}, 1200);
+
+const maxOf = (rows, k) => rows.reduce((m, r) => { const v = k(r) || ''; return v > m ? v : m; }, '');
+const back = (iso, min) => { const t = Date.parse(iso); return Number.isFinite(t) ? new Date(t - min * 6e4).toISOString() : '1970-01-01T00:00:00Z'; };
+
+async function fullSync(token) {
+  const rows = await sbAll(`entries?select=${ENTRY_COLS},title:titles(${titleCols()})&order=title_id.asc`, (d, t) => {
+    if (token !== state.sync.token) return;
+    state.lib.progress = [d, t]; paintProgress();
+  });
+  if (token !== state.sync.token) return;
+  ingestRows(rows);
+  state.sync.entriesAt = maxOf(rows, r => r.updated_at);
+  state.sync.titlesAt = maxOf(rows, r => r.title && r.title.fetched_at);
+}
+
+async function deltaSync(token) {
+  const since = back(state.sync.entriesAt, 10), tsince = back(state.sync.titlesAt, 10);
+  const [changed, retitled, ids] = await Promise.all([
+    sbAll(`entries?select=${ENTRY_COLS},title:titles(${titleCols()})&updated_at=gt.${encodeURIComponent(since)}&order=title_id.asc`),
+    sbAll(`entries?select=${ENTRY_COLS},titles!inner(${titleCols()})&titles.fetched_at=gt.${encodeURIComponent(tsince)}&order=title_id.asc`),
+    sbAll('entries?select=title_id&order=title_id.asc')
+  ]);
+  if (token !== state.sync.token) return;
+  let dirty = false;
+  retitled.forEach(r => { r.title = r.titles; delete r.titles; });
+  for (const r of [...retitled, ...changed]) { if (r.title) { state.byId.set(r.title_id, prep(r)); dirty = true; } }
+  const alive = new Set(ids.map(r => r.title_id));
+  for (const id of [...state.byId.keys()]) if (!alive.has(id)) { state.byId.delete(id); dirty = true; }
+  if (dirty) state.libVer++;
+  const all = [...state.byId.values()];
+  state.sync.entriesAt = maxOf(all, r => r.updated_at) || state.sync.entriesAt;
+  state.sync.titlesAt = maxOf(all, r => r.title && r.title.fetched_at) || state.sync.titlesAt;
+  return dirty;
+}
+
+async function loadLibrary({ full = false } = {}) {
   if (!sbReady()) { state.lib.status = 'noconfig'; renderAll(); return; }
-  state.lib.status = 'loading'; renderAll();
+  const token = ++state.sync.token;
+  // 1) 기기 캐시로 즉시 표시
+  if (state.lib.status !== 'ready' && !full) {
+    const cached = await Store.get(cacheKey());
+    if (token !== state.sync.token) return;
+    if (cached && cached.v === CACHE_VER && Array.isArray(cached.rows)) {
+      ingestRows(cached.rows);
+      state.sync.entriesAt = cached.entriesAt || ''; state.sync.titlesAt = cached.titlesAt || '';
+      state.lib.status = 'ready'; state.lib.error = null;
+      renderAll();
+    }
+  }
+  const useDelta = !full && state.lib.status === 'ready' && !!state.sync.entriesAt;
+  if (!useDelta && state.lib.status !== 'ready') { state.lib.status = 'loading'; state.lib.progress = [0, 0]; renderAll(); }
+  state.sync.busy = true; renderNotice();
   try {
-    const rows = await sb('entries?select=*,title:titles(*)&order=updated_at.desc');
-    state.byId = new Map();
-    (rows || []).forEach(r => { if (r.title) { r.rating = r.rating == null ? null : Number(r.rating); state.byId.set(r.title_id, r); } });
-    state.lib.status = 'ready'; state.lib.error = null;
-  } catch (e) { state.lib.status = 'error'; state.lib.error = e; }
+    if (useDelta) { const changed = await deltaSync(token); if (token !== state.sync.token) return; if (changed) renderAll(); }
+    else { await fullSync(token); if (token !== state.sync.token) return; }
+    state.lib.status = 'ready'; state.lib.error = null; state.sync.lastAt = Date.now();
+  } catch (e) {
+    if (token !== state.sync.token) return;
+    if (isPeopleErr(e) && HAS_PEOPLE !== false) { setHasPeople(false); state.sync.busy = false; return loadLibrary({ full: !useDelta }); }
+    if (state.lib.status === 'ready') toast('최신 목록을 받지 못해 기기에 저장된 목록을 보여줍니다. ' + e.message, 'error');
+    else { state.lib.status = 'error'; state.lib.error = e; }
+  }
+  state.sync.busy = false;
   renderAll();
+  persist();
 }
 
 /* ════════════ 렌더 공통 ════════════ */
@@ -908,11 +1340,26 @@ function starsHTML(v, cls = '') {
   return `<span class="stars ${cls}" aria-hidden="true">${s}</span>`;
 }
 function setStars(el, v) { $$('.st .f', el).forEach((f, i) => f.style.width = clamp((Number(v) || 0) - i, 0, 1) * 100 + '%'); }
+const mstars = v => `<span class="mstars" style="--p:${Math.round(clamp(Number(v) || 0, 0, 5) * 20)}%" aria-hidden="true"></span>`;
 
-function posterHTML(t, size = 'w342') {
+const noimgHTML = title => `<div class="noimg">${ICON.asterisk}<span>${esc(title)}</span></div>`;
+/* defer=true 이면 스크롤이 멈춘 뒤에 이미지를 요청 (빠른 스크롤 중 수백 장 동시 요청 방지) */
+function posterHTML(t, size = THUMB(), defer = false) {
   const src = IMG(t.poster_path, size);
-  const fallback = `<div class="noimg">${ICON.asterisk}<span>${esc(t.title)}</span></div>`;
-  return `<div class="poster">${src ? `<img src="${src}" alt="${esc(t.title)} 포스터" loading="lazy" decoding="async" onload="this.classList.add('ld')" onerror="this.outerHTML=this.nextElementSibling.innerHTML" ><template>${fallback}</template>` : fallback}</div>`;
+  if (!src) return `<div class="poster">${noimgHTML(t.title)}</div>`;
+  return `<div class="poster"><img class="pimg" ${defer ? 'data-src' : 'loading="lazy" src'}="${src}" alt="" data-t="${esc(t.title)}" decoding="async"></div>`;
+}
+/* 이미지 로드/오류는 문서 단위 위임 (카드마다 인라인 핸들러를 달지 않음) */
+document.addEventListener('load', e => { const i = e.target; if (i && i.tagName === 'IMG' && (i.classList.contains('pimg') || i.classList.contains('hart'))) i.classList.add('ld'); }, true);
+document.addEventListener('error', e => {
+  const i = e.target; if (!i || i.tagName !== 'IMG') return;
+  if (i.classList.contains('pimg')) { const d = document.createElement('div'); d.innerHTML = noimgHTML(i.dataset.t || ''); i.replaceWith(d.firstElementChild); }
+  else if (i.classList.contains('hart')) i.remove();
+}, true);
+function settleImages(root) {
+  $$('img.pimg, img.hart', root).forEach(img => {
+    if (img.complete && img.naturalWidth) { img.style.transition = 'none'; img.classList.add('ld'); void img.offsetWidth; img.style.transition = ''; }
+  });
 }
 
 function pcardHTML(t, entry, opts = {}) {
@@ -922,24 +1369,19 @@ function pcardHTML(t, entry, opts = {}) {
     ? `감상 ${fmtDate(saved.watched_on)} / ${typeLabel(t.media_type)}`
     : [yearOf(t.release_date) || '연도 미상', typeLabel(t.media_type), country].filter(Boolean).join(' / ');
   let rate = '';
-  if (saved) {
-    rate = saved.rating ? `${starsHTML(saved.rating)}<b>${saved.rating.toFixed(1)}</b>` : `<span>${saved.status === 'want' ? '보고 싶은 작품' : '별점 없음'}</span>`;
-  } else if (t.vote_average) {
-    rate = `<span>TMDB ${Number(t.vote_average).toFixed(1)}</span>`;
-  }
+  if (saved) rate = saved.rating ? `${mstars(saved.rating)}<b>${saved.rating.toFixed(1)}</b>` : `<span>${saved.status === 'want' ? '보고 싶은 작품' : '별점 없음'}</span>`;
+  else if (t.vote_average) rate = `<span>TMDB ${Number(t.vote_average).toFixed(1)}</span>`;
   return `<article class="pcard" data-action="open" data-id="${esc(t.id)}" tabindex="0" role="button" aria-label="${esc(t.title)} 상세 보기">
-    <div class="poster-wrap" style="position:relative">
-      ${posterHTML(t)}
+    <div class="poster-wrap">
+      ${posterHTML(t, opts.size || THUMB(), opts.defer)}
       <div class="pc-top">
         <span class="pill xs">${typeLabel(t.media_type)}</span>
-        ${saved ? `<span class="pc-icons">${saved.liked ? `<span title="좋아요">${ICON.heartFill}</span>` : ''}${saved.favorite ? `<span title="즐겨찾기">${ICON.starFill}</span>` : ''}</span>` : ''}
+        ${saved && (saved.liked || saved.favorite) ? `<span class="pc-icons">${saved.liked ? `<span title="좋아요">${ICON.heartFill}</span>` : ''}${saved.favorite ? `<span title="즐겨찾기">${ICON.starFill}</span>` : ''}</span>` : ''}
       </div>
       ${saved && saved.status === 'want' ? '<span class="pill xs pc-want">보고 싶어요</span>' : ''}
       ${saved && !entry ? `<span class="pc-saved" title="내 목록에 있음">${ICON.check}</span>` : ''}
     </div>
-    <h3>${esc(t.title)}</h3>
-    <p class="sub">${esc(sub)}</p>
-    <div class="rate">${rate}</div>
+    <div class="pc-meta"><h3>${esc(t.title)}</h3><p class="sub">${esc(sub)}</p><div class="rate">${rate}</div></div>
   </article>`;
 }
 
@@ -953,12 +1395,26 @@ function renderNotice() {
   if (!tmdbReady()) msgs.push(['TMDB API Key가 없어 검색할 수 없습니다. 파일 상단 CONFIG 또는 설정에서 입력하세요.', 'settings', '설정 열기']);
   if (!sbReady()) msgs.push(['Supabase가 연결되지 않아 내 목록을 저장할 수 없습니다.', 'settings', '설정 열기']);
   else if (state.lib.status === 'error') msgs.push([state.lib.error.message, state.lib.error.kind === 'schema' || state.lib.error.kind === 'auth' ? 'settings' : 'reload-lib', state.lib.error.kind === 'schema' || state.lib.error.kind === 'auth' ? 'SQL·설정 보기' : '다시 불러오기']);
-  n.innerHTML = msgs.map(([m, a, b]) => `<div class="glass err" style="margin-bottom:8px"><p>${esc(m)}</p><button class="btn sm" data-action="${a}">${b}</button></div>`).join('');
-  const s = $('#sync');
-  s.className = 'sync ' + (state.lib.status === 'ready' ? 'ok' : (state.lib.status === 'error' || state.lib.status === 'noconfig') ? 'err' : '');
-  $('span', s).textContent = { ready: 'Supabase 동기화됨', error: '저장소 오류', noconfig: '저장소 미연결', loading: '불러오는 중', idle: '연결 확인 중' }[state.lib.status];
-  $('#cntLib').textContent = state.byId.size;
+  const html = msgs.map(([m, a, b]) => `<div class="glass err" style="margin-bottom:8px"><p>${esc(m)}</p><button class="btn sm" data-action="${a}">${b}</button></div>`).join('');
+  if (n.innerHTML !== html) n.innerHTML = html;
+  paintSync();
+  $('#cntLib').textContent = state.byId.size > 9999 ? Math.floor(state.byId.size / 1000) + 'k' : num(state.byId.size);
 }
+function paintSync() {
+  const s = $('#sync'), st = state.lib.status, [d, t] = state.lib.progress;
+  s.className = 'sync ' + (state.sync.busy ? 'busy' : st === 'ready' ? 'ok' : (st === 'error' || st === 'noconfig') ? 'err' : '');
+  $('span', s).textContent = state.sync.busy
+    ? (st === 'loading' || d ? `불러오는 중 ${num(d)}${t ? ' / ' + num(t) : ''}` : '동기화 중')
+    : ({ ready: 'Supabase 동기화됨', error: '저장소 오류', noconfig: '저장소 미연결', loading: '불러오는 중', idle: '연결 확인 중' }[st]);
+}
+function paintProgress() {
+  paintSync();
+  const [d, t] = state.lib.progress;
+  const bar = $('#loadBar'), txt = $('#loadTxt');
+  if (bar) bar.style.width = (t ? Math.round(d / t * 100) : 12) + '%';
+  if (txt) txt.textContent = t ? `${num(d)} / ${num(t)}편` : `${num(d)}편`;
+}
+const loadingHTML = () => `<div class="loadbox glass"><h3><span class="l">내 목록을 </span><b>불러오는 중</b></h3><p id="loadTxt">${state.lib.progress[0] ? num(state.lib.progress[0]) + '편' : '연결 중'}</p><div class="pbar"><i id="loadBar"></i></div><p class="muted-note" style="margin-top:14px">처음 한 번만 전체를 받고, 다음부터는 이 기기에 저장된 목록을 바로 보여줍니다.</p></div>`;
 
 function toast(msg, type = 'info', ms) {
   const el = document.createElement('div');
@@ -990,22 +1446,26 @@ const restoreStrips = (root, m) => {
   requestAnimationFrame(() => updateStrips(root));
 };
 
-/* ════════════ 배경 (메인 박스 작품 이미지 블러) ════════════ */
+/* ════════════ 배경: 작은 캔버스에 그려 확대 → CSS blur 없이 부드러운 배경 ════════════ */
 const Ambient = (() => {
   let current = null, flip = false;
+  const cv = [$('#bgA'), $('#bgB')];
   return {
-    set(path) {
-      const url = path ? IMG(path, 'w1280') : '';
+    set(path, isBackdrop = true) {
+      const url = path ? IMG(path, isBackdrop ? 'w300' : 'w185') : '';
       if (url === current) return;
       current = url;
-      const a = $('#bgA'), b = $('#bgB');
-      if (!url) { a.classList.remove('on'); b.classList.remove('on'); return; }
+      if (!url) { cv.forEach(c => c.classList.remove('on')); return; }
       const img = new Image();
       img.decoding = 'async';
       img.onload = () => {
         if (current !== url) return;
-        const [on, off] = flip ? [a, b] : [b, a]; flip = !flip;
-        on.style.backgroundImage = `url("${url}")`;
+        const on = cv[flip ? 0 : 1], off = cv[flip ? 1 : 0]; flip = !flip;
+        const ctx = on.getContext('2d'), W = on.width, H = on.height;
+        const s = Math.max(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
+        ctx.clearRect(0, 0, W, H);
+        try { ctx.filter = 'blur(1.6px) saturate(1.35)'; } catch {}
+        ctx.drawImage(img, (W - w) / 2, (H - h) * .3, w, h);
         on.classList.add('on'); off.classList.remove('on');
       };
       img.src = url;
@@ -1014,31 +1474,218 @@ const Ambient = (() => {
 })();
 
 /* ════════════ 화면 전환 ════════════ */
-function setView(v, { push = true } = {}) {
+function setView(v, { push = true, keepScroll = true } = {}) {
   if (!['search', 'library', 'stats'].includes(v)) v = 'search';
+  state.scroll[state.view] = window.scrollY;
   state.view = v;
   $$('[data-view-section]').forEach(s => s.hidden = s.dataset.viewSection !== v);
   $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === v));
   if (push && location.hash !== '#' + v) history.pushState(null, '', '#' + v);
   renderView();
-  requestAnimationFrame(() => updateStrips());
-  window.scrollTo({ top: 0 });
+  window.scrollTo(0, keepScroll ? (state.scroll[v] || 0) : 0);
+  requestAnimationFrame(() => { updateStrips(); if (v === 'library') vlPaint(true); updateFab(); });
+  heroSchedule();
 }
 function renderView() {
   if (state.view === 'search') renderSearch();
   else if (state.view === 'library') renderLibrary();
   else renderStats();
 }
-function renderAll() { syncHero(); renderNotice(); renderView(); }
+function renderAll() { heroEnsure(); heroAmbient(); renderNotice(); renderView(); }
+
+/* ════════════ 메인 박스 (별점 4.0 이상 작품 순환) ════════════ */
+const HERO_SEC = Math.max(5, Number(C.HERO_ROTATE_SECONDS) || 30);
+const HERO_MS = HERO_SEC * 1000;
+const Hero = { cur: null, next: null, hist: [], paused: lsGet('mycinema.heroPaused', '0') === '1', remain: HERO_MS, t0: 0, timer: 0,
+  poolVer: -1, pool: [], set: new Set(), visible: true, io: null };
+
+function heroPool() {
+  if (Hero.poolVer !== state.libVer) {
+    Hero.pool = []; state.byId.forEach(e => { if (e.rating >= 4 && (e.title.backdrop_path || e.title.poster_path)) Hero.pool.push(e.title_id); });
+    Hero.set = new Set(Hero.pool); Hero.poolVer = state.libVer;
+  }
+  return Hero.pool;
+}
+function heroRandom(excl) {
+  const p = heroPool(); if (!p.length) return null;
+  for (let i = 0; i < 16; i++) { const id = p[Math.floor(Math.random() * p.length)]; if (!excl.includes(id)) return id; }
+  return p.find(id => !excl.includes(id)) || p[0];
+}
+function heroEnsure() {
+  const p = heroPool();
+  if (!p.length) { Hero.cur = Hero.next = null; return; }
+  if (!Hero.cur || !Hero.set.has(Hero.cur)) Hero.cur = heroRandom([]);
+  if (p.length < 2) { Hero.next = null; return; }
+  if (!Hero.next || Hero.next === Hero.cur || !Hero.set.has(Hero.next)) Hero.next = heroRandom([Hero.cur, ...Hero.hist.slice(-Math.min(12, p.length - 2))]);
+}
+const heroEntry = () => Hero.cur ? state.byId.get(Hero.cur) : null;
+function heroAmbient() { const e = heroEntry(); if (!e) { Ambient.set(null); return; } const t = e.title; Ambient.set(t.backdrop_path || t.poster_path, !!t.backdrop_path); }
+function heroArtSrc(t) {
+  const m = mqMobile.matches;
+  return t.backdrop_path ? IMG(t.backdrop_path, m ? 'w780' : 'w1280') : IMG(t.poster_path, m ? 'w500' : 'w780');
+}
+const heroImgHTML = e => `<img class="hart" src="${heroArtSrc(e.title)}" alt="" decoding="async" fetchpriority="high" data-id="${esc(e.title_id)}">`;
+
+function heroMainHTML(e) {
+  const t = e.title;
+  const dir = (t.directors || [])[0];
+  const meta = [yearOf(t.release_date), typeLabel(t.media_type), t.countries && t.countries[0] ? regionName(t.countries[0]) : '',
+    (t.genres || []).slice(0, 2).join(', '), dir ? `${t.media_type === 'tv' ? '크리에이터' : '감독'} ${dir.name}` : ''].filter(Boolean);
+  const quote = e.review ? String(e.review).trim().replace(/\s+/g, ' ') : '';
+  return `<div class="hero-rate">${mstars(e.rating)}<b>${Number(e.rating).toFixed(1)}</b><span>내 별점${e.watched_on ? ` · ${fmtDate(e.watched_on)} 감상` : ''}</span></div>
+    <h1 class="hero-title">${esc(t.title)}</h1>
+    ${t.original_title && t.original_title !== t.title ? `<p class="hero-orig">${esc(t.original_title)}</p>` : ''}
+    <p class="hero-meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</p>
+    ${quote ? `<p class="hero-quote">${esc(quote)}</p>` : ''}
+    <div class="hero-actions">
+      <button class="btn primary" data-action="open" data-id="${esc(e.title_id)}">내 기록 보기</button>
+      <button class="btn" data-action="nav" data-view="library">내 목록 ${num(state.byId.size)}편</button>
+    </div>`;
+}
+function heroNextHTML() {
+  const n = Hero.next && state.byId.get(Hero.next);
+  if (!n) return '';
+  const t = n.title;
+  return `<span class="nthumb">${t.poster_path ? `<img src="${IMG(t.poster_path, 'w154')}" alt="" decoding="async">` : ''}</span>
+    <span><small>다음 작품</small><b>${esc(t.title)}</b><em>${[yearOf(t.release_date), typeLabel(t.media_type), '★ ' + Number(n.rating).toFixed(1)].filter(Boolean).join(' · ')}</em></span>`;
+}
+const heroRemainNow = () => Hero.timer ? Math.max(0, Hero.remain - (Date.now() - Hero.t0)) : Hero.remain;
+
+function heroHTML() {
+  heroEnsure();
+  const e = heroEntry();
+  if (!e) {
+    return `<section class="hero glass intro" id="hero">
+      <div class="hero-top"><span class="pill">TMDB 영화 · 드라마</span></div>
+      <div></div>
+      <div class="hero-intro">
+        <h1 class="display"><span><span class="l">KEEP </span><b>EVERY STORY</b></span><span><span class="l">YOU HAVE </span><b>WATCHED</b></span></h1>
+        <p class="hero-note">${ICON.arrow}<span>위 검색창에 제목을 입력하세요. 본 작품과 보고 싶은 작품을 한곳에 기록합니다.<br>별점 4.0 이상을 준 작품이 생기면 이 자리에 크게 소개됩니다.</span></p>
+        ${state.byId.size ? `<div class="hero-actions"><button class="btn" data-action="nav" data-view="library">내 목록 ${num(state.byId.size)}편</button></div>` : ''}
+      </div>
+    </section>`;
+  }
+  const t = e.title;
+  const elapsed = (HERO_MS - heroRemainNow()) / 1000;
+  const run = !Hero.paused;
+  return `<section class="hero solid${Hero.next ? '' : ' single'}${run ? '' : ' paused'}" id="hero" style="--dur:${HERO_SEC}s" aria-roledescription="carousel" aria-label="별점 4.0 이상 작품">
+    <div class="hero-art${t.backdrop_path ? '' : ' poster-only'}">${heroImgHTML(e)}</div>
+    <div class="hero-shade"></div>
+    <div class="hero-top">
+      <span class="pill">TMDB 영화 · 드라마</span>
+      <p class="hero-slogan">Keep every story<br><b>you have watched</b></p>
+    </div>
+    <div class="hero-main" id="heroMain">${heroMainHTML(e)}</div>
+    <div class="hero-dock">
+      <div class="hero-ctrl">
+        <button class="hc" data-action="hero-prev" id="heroPrev" aria-label="이전 작품"${Hero.hist.length ? '' : ' disabled'}>${ICON.chevL}</button>
+        <button class="hc play" data-action="hero-toggle" id="heroPlay" aria-label="${run ? '자동 넘김 멈춤' : '자동 넘김 다시 시작'}">${run ? ICON.pause : ICON.play}</button>
+        <button class="hc" data-action="hero-next" aria-label="다음 작품">${ICON.chev}</button>
+      </div>
+      <div class="hero-prog-wrap">
+        <div class="hero-prog-info"><span>별점 4.0 이상 <b id="heroPool">${num(heroPool().length)}</b>편에서 골라 보여줍니다</span><span id="heroLeft"></span></div>
+        <div class="hero-prog"><i id="heroBar" style="animation-delay:-${elapsed.toFixed(2)}s"></i></div>
+      </div>
+      <button class="hero-next" data-action="hero-next" id="heroNext" aria-label="다음 작품으로">${heroNextHTML()}</button>
+    </div>
+  </section>`;
+}
+
+function heroPaint() {
+  heroAmbient();
+  const hero = $('#hero'); const e = heroEntry();
+  if (!hero) return;
+  if (!e || hero.classList.contains('intro')) { if (state.view === 'search' && !state.search.q) renderSearch(); return; }
+  const art = $('.hero-art', hero), last = art.lastElementChild;
+  if (!last || last.dataset.id !== e.title_id) {
+    art.classList.toggle('poster-only', !e.title.backdrop_path);
+    const holder = document.createElement('div'); holder.innerHTML = heroImgHTML(e);
+    const img = holder.firstElementChild;
+    img.addEventListener('load', () => setTimeout(() => $$('img', art).forEach(x => { if (x !== img) x.remove(); }), 1100), { once: true });
+    art.appendChild(img);
+  }
+  $('#heroMain').innerHTML = heroMainHTML(e);
+  $('#heroNext').innerHTML = heroNextHTML();
+  hero.classList.toggle('single', !Hero.next);
+  $('#heroPrev').disabled = !Hero.hist.length;
+  $('#heroPool').textContent = num(heroPool().length);
+  const bar = $('#heroBar'); bar.style.animation = 'none'; bar.style.animationDelay = '0s'; void bar.offsetWidth; bar.style.animation = '';
+  const n = Hero.next && state.byId.get(Hero.next);
+  if (n) { const pre = new Image(); pre.decoding = 'async'; pre.src = heroArtSrc(n.title); }
+}
+function heroGo(dir) {
+  heroEnsure(); if (!Hero.cur) return;
+  if (dir > 0) {
+    if (!Hero.next) return;
+    Hero.hist.push(Hero.cur); if (Hero.hist.length > 80) Hero.hist.shift();
+    Hero.cur = Hero.next; Hero.next = null;
+  } else {
+    let prev = null;
+    while (Hero.hist.length) { const c = Hero.hist.pop(); if (Hero.set.has(c)) { prev = c; break; } }
+    if (!prev) return;
+    Hero.next = Hero.cur; Hero.cur = prev;
+  }
+  heroEnsure();
+  clearTimeout(Hero.timer); Hero.timer = 0; Hero.remain = HERO_MS;
+  heroPaint(); heroSchedule();
+}
+function heroRunnable() {
+  const h = $('#hero');
+  return state.view === 'search' && !state.search.q && !document.hidden && Hero.visible && !state.detail && !!Hero.next && !!h && !h.classList.contains('intro');
+}
+function heroHold() { if (Hero.timer) { Hero.remain = Math.max(0, Hero.remain - (Date.now() - Hero.t0)); clearTimeout(Hero.timer); Hero.timer = 0; } }
+function heroSchedule() {
+  heroHold();
+  const hero = $('#hero'), run = heroRunnable() && !Hero.paused;
+  if (hero) hero.classList.toggle('paused', !run);
+  if (run) { Hero.t0 = Date.now(); Hero.timer = setTimeout(() => { Hero.timer = 0; heroGo(1); }, Hero.remain); }
+  heroTick();
+}
+function heroTick() {
+  const el = $('#heroLeft'); if (!el) return;
+  const txt = Hero.paused ? '멈춤' : Hero.timer ? `다음 작품까지 ${Math.ceil(heroRemainNow() / 1000)}초` : '';
+  if (el.textContent !== txt) el.textContent = txt;
+}
+function heroToggle() {
+  Hero.paused = !Hero.paused; lsSet('mycinema.heroPaused', Hero.paused ? '1' : '0');
+  const b = $('#heroPlay');
+  if (b) { b.innerHTML = Hero.paused ? ICON.play : ICON.pause; b.setAttribute('aria-label', Hero.paused ? '자동 넘김 다시 시작' : '자동 넘김 멈춤'); }
+  heroSchedule();
+}
+function heroObserve() {
+  const h = $('#hero');
+  if (!('IntersectionObserver' in window) || !h) { Hero.visible = true; return; }
+  if (!Hero.io) Hero.io = new IntersectionObserver(es => { const v = es[es.length - 1].isIntersecting; if (v !== Hero.visible) { Hero.visible = v; heroSchedule(); } }, { threshold: .2 });
+  Hero.io.disconnect(); Hero.io.observe(h);
+}
+setInterval(heroTick, 1000);
+document.addEventListener('visibilitychange', () => {
+  heroSchedule();
+  if (!document.hidden && sbReady() && state.lib.status === 'ready' && !state.sync.busy && Date.now() - state.sync.lastAt > 180000) loadLibrary();
+});
+/* 메인 박스 좌우 스와이프 */
+let swipe = null;
+document.addEventListener('touchstart', e => {
+  const h = e.target.closest && e.target.closest('#hero');
+  swipe = h && e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  if (!swipe) return; const p = e.changedTouches[0];
+  const dx = p.clientX - swipe.x, dy = p.clientY - swipe.y;
+  if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.6 && Date.now() - swipe.t < 800) heroGo(dx < 0 ? 1 : -1);
+  swipe = null;
+}, { passive: true });
 
 /* ════════════ 검색 ════════════ */
 async function runSearch(q, page = 1) {
   q = (q || '').trim();
   const s = state.search;
   const token = ++s.token;
+  const wasIdle = !s.q;
   s.q = q;
   $('[data-action="clear-search"]').hidden = !q;
-  if (!q) { s.status = 'idle'; s.results = []; renderSearch(); return; }
+  if (!q) { s.status = 'idle'; s.results = []; renderSearch(); heroSchedule(); return; }
+  if (wasIdle) heroSchedule();
   if (!tmdbReady()) { s.status = 'error'; s.error = new AppError('TMDB API Key가 없습니다. 설정에서 입력하세요.', 'config'); renderSearch(); return; }
   if (page === 1) { s.status = 'loading'; s.results = []; renderSearch(); } else { s.more = true; renderSearch(); }
   const path = s.type === 'movie' ? '/search/movie' : s.type === 'tv' ? '/search/tv' : '/search/multi';
@@ -1073,7 +1720,12 @@ async function loadTrending() {
 
 function renderSearch() {
   const s = state.search, body = $('#searchBody');
-  if (!s.q) { const sp = saveStrips(body); body.innerHTML = searchIdleHTML(); settleImages(body); restoreStrips(body, sp); return; }
+  if (!s.q) {
+    const sp = saveStrips(body);
+    body.innerHTML = searchIdleHTML();
+    settleImages(body); restoreStrips(body, sp); heroObserve(); heroSchedule();
+    return;
+  }
   if (s.status === 'loading') {
     body.innerHTML = `<div class="results-head"><h2><span class="l">검색 중 </span><b>“${esc(s.q)}”</b></h2></div><div class="results">${Array.from({ length: 6 }, () => '<div class="skel" style="height:220px;border-radius:24px"></div>').join('')}</div>`;
     return;
@@ -1089,21 +1741,22 @@ function renderSearch() {
     return;
   }
   const titleCount = {};
-  s.results.forEach(r => { const k = r.title.replace(/\s+/g, '').toLowerCase(); titleCount[k] = (titleCount[k] || 0) + 1; });
+  s.results.forEach(r => { const k = norm(r.title); titleCount[k] = (titleCount[k] || 0) + 1; });
   body.innerHTML = `
     <div class="results-head">
       <h2><span class="l">“${esc(s.q)}” </span><b>${s.results.length}편</b></h2>
       <p style="margin:0;color:var(--dim);font-size:13px">같은 제목은 연도와 포스터로 구분하세요</p>
     </div>
-    <div class="results">${s.results.map(r => rcardHTML(r, titleCount[r.title.replace(/\s+/g, '').toLowerCase()])).join('')}</div>
+    <div class="results">${s.results.map(r => rcardHTML(r, titleCount[norm(r.title)])).join('')}</div>
     ${s.page < s.totalPages ? `<div class="more-wrap"><button class="btn" data-action="more" ${s.more ? 'disabled' : ''}>${s.more ? '<span class="spin"></span> 불러오는 중' : '결과 더 보기'}</button></div>` : ''}`;
+  settleImages(body);
 }
 
 function rcardHTML(r, dupCount) {
   const saved = state.byId.get(r.id);
   const place = r.countries && r.countries.length ? r.countries.map(regionName).join(', ') : (langName(r.original_language) ? `원어 ${langName(r.original_language)}` : '');
   const meta = [r.release_date ? `${r.media_type === 'tv' ? '첫 방영' : '개봉'} ${fmtDate(r.release_date)}` : '공개일 미정', place, r.genres.join(', ')].filter(Boolean);
-  return `<article class="rcard glass" data-action="open" data-id="${esc(r.id)}" tabindex="0" role="button" aria-label="${esc(r.title)} 상세 보기">
+  return `<article class="rcard solid" data-action="open" data-id="${esc(r.id)}" tabindex="0" role="button" aria-label="${esc(r.title)} 상세 보기">
     ${posterHTML(r)}
     <div class="rinfo">
       <div class="rtags">
@@ -1125,117 +1778,29 @@ function rcardHTML(r, dupCount) {
   </article>`;
 }
 
-const HERO_SEC = Math.max(5, Number(C.HERO_ROTATE_SECONDS) || 30);
-const RING_C = 2 * Math.PI * 17;
-const heroPool = () => [...state.byId.values()].filter(e => Number(e.rating) >= 4 && (e.title.backdrop_path || e.title.poster_path));
-function heroPick(force) {
-  const pool = heroPool();
-  if (!pool.length) { state.heroId = null; return null; }
-  if (!force && state.heroId && pool.some(e => e.title_id === state.heroId)) return state.byId.get(state.heroId);
-  const cand = force && pool.length > 1 ? pool.filter(e => e.title_id !== state.heroId) : pool;
-  const pick = cand[Math.floor(Math.random() * cand.length)];
-  state.heroId = pick.title_id;
-  return pick;
-}
-const heroImagePath = e => e ? (e.title.backdrop_path || e.title.poster_path) : null;
-function syncHero() {
-  const e = heroPick(false);
-  Ambient.set(heroImagePath(e));
-  if (!e) state.heroNextAt = 0;
-  else if (!state.heroNextAt) state.heroNextAt = Date.now() + HERO_SEC * 1000;
-}
-function heroArtImg(e) {
-  const t = e.title, bd = !!t.backdrop_path;
-  return `<img src="${IMG(bd ? t.backdrop_path : t.poster_path, bd ? 'w1280' : 'w780')}" alt="" decoding="async" onload="this.classList.add('ld')" onerror="this.remove()">`;
-}
-function heroCapMainHTML(e) {
-  const t = e.title;
-  return `<button class="hero-cap-main" data-action="open" data-id="${esc(e.title_id)}" aria-label="${esc(t.title)} 상세 보기">
-    <span class="hero-thumb">${t.poster_path ? `<img src="${IMG(t.poster_path, 'w154')}" alt="">` : ''}</span>
-    <span class="hero-cap-txt"><small>내 별점 ★ ${Number(e.rating).toFixed(1)}</small><b>${esc(t.title)}</b><em>${[yearOf(t.release_date), typeLabel(t.media_type)].filter(Boolean).join(' · ')}</em></span>
-  </button>`;
-}
-function heroTimerHTML() {
-  const left = heroSecondsLeft();
-  return `<button class="hero-timer${heroPool().length > 1 ? '' : ' single'}" data-action="hero-shuffle" id="heroTimer" aria-label="다음 작품까지 ${left}초, 누르면 바로 변경" title="${HERO_SEC}초마다 자동 변경 · 누르면 바로 다음 작품">
-    <svg viewBox="0 0 40 40" aria-hidden="true"><circle class="trk" cx="20" cy="20" r="17"/><circle class="prog" id="heroRing" cx="20" cy="20" r="17" style="stroke-dashoffset:${(RING_C * (1 - left / HERO_SEC)).toFixed(2)}"/></svg>
-    <b id="heroSec">${left}<small>s</small></b>
-  </button>`;
-}
-const heroSecondsLeft = () => state.heroNextAt ? clamp(Math.ceil((state.heroNextAt - Date.now()) / 1000), 0, HERO_SEC) : HERO_SEC;
-
-function rotateHero() {
-  const prev = state.heroId;
-  const e = heroPick(true);
-  state.heroNextAt = e ? Date.now() + HERO_SEC * 1000 : 0;
-  Ambient.set(heroImagePath(e));
-  if (!e) return;
-  const hero = $('#searchBody .hero');
-  if (hero && e.title_id !== prev) {
-    const art = hero.querySelector('.hero-art'), cap = hero.querySelector('.hero-cap-main');
-    if (!art || !cap) { if (state.view === 'search' && !state.search.q) renderSearch(); }
-    else {
-      art.classList.toggle('poster-only', !e.title.backdrop_path);
-      const holder = document.createElement('div'); holder.innerHTML = heroArtImg(e);
-      const img = holder.firstElementChild;
-      img.addEventListener('load', () => setTimeout(() => $$('img', art).forEach(x => { if (x !== img) x.remove(); }), 1000), { once: true });
-      art.appendChild(img);
-      cap.outerHTML = heroCapMainHTML(e);
-    }
+const recentWatched = memo(ord => {
+  const dated = allEntries().filter(e => e.status === 'watched' && e.watched_on);
+  const cmp = ord === 'asc' ? (a, b) => (a._wk < b._wk ? -1 : a._wk > b._wk ? 1 : 0) : (a, b) => (a._wk < b._wk ? 1 : a._wk > b._wk ? -1 : 0);
+  // 수만 편이어도 20개만 필요 — 전체 정렬 대신 부분 선택
+  const top = [];
+  for (const e of dated) {
+    if (top.length < 20) { top.push(e); if (top.length === 20) top.sort(cmp); continue; }
+    if (cmp(e, top[19]) < 0) { top[19] = e; top.sort(cmp); }
   }
-  const ring = $('#heroRing');
-  if (ring) { ring.style.transition = 'none'; ring.style.strokeDashoffset = '0'; void ring.getBoundingClientRect(); ring.style.transition = ''; }
-  tickHero();
-}
-function tickHero() {
-  if (!state.heroId) return;
-  const many = heroPool().length > 1;
-  const left = heroSecondsLeft();
-  if (left <= 0) {
-    if (many && !document.hidden) { rotateHero(); return; }
-    state.heroNextAt = Date.now() + HERO_SEC * 1000;
-  }
-  const btn = $('#heroTimer'); if (!btn) return;
-  btn.classList.toggle('single', !many);
-  const l = heroSecondsLeft();
-  $('#heroSec').innerHTML = `${l}<small>s</small>`;
-  $('#heroRing').style.strokeDashoffset = (RING_C * (1 - l / HERO_SEC)).toFixed(2);
-  btn.setAttribute('aria-label', `다음 작품까지 ${l}초, 누르면 바로 변경`);
-}
-setInterval(tickHero, 1000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) tickHero(); });
+  return { total: dated.length, list: top.sort(cmp) };
+});
+const recentAny = memo(() => {
+  const arr = allEntries(); const top = [];
+  const k = e => String(e.updated_at || '');
+  for (const e of arr) { if (top.length < 20) { top.push(e); continue; } let mi = 0; for (let i = 1; i < 20; i++) if (k(top[i]) < k(top[mi])) mi = i; if (k(e) > k(top[mi])) top[mi] = e; }
+  return top.sort((a, b) => k(b).localeCompare(k(a)));
+});
 
 function searchIdleHTML() {
-  const entries = [...state.byId.values()];
-  const watched = entries.filter(e => e.status === 'watched').length;
-  const hero = heroPick(false);
-  let art = '', cap = '';
-  if (hero) {
-    art = `<div class="hero-art${hero.title.backdrop_path ? '' : ' poster-only'}">${heroArtImg(hero)}</div><div class="hero-shade"></div>`;
-    cap = `<div class="hero-cap">${heroCapMainHTML(hero)}${heroTimerHTML()}</div>`;
-  }
-  let html = `
-  <section class="hero glass${hero ? ' has-art' : ''}">
-    ${art}
-    <div class="hero-top">
-      <span class="pill">TMDB 영화 · 드라마</span>
-      <span class="hero-star">${ICON.asterisk}</span>
-    </div>
-    <h1 class="display hero-display"><span><span class="l">KEEP </span><b>EVERY STORY</b></span><span><span class="l">YOU HAVE </span><b>WATCHED</b></span></h1>
-    <p class="hero-note">${ICON.arrow}<span>위 검색창에 제목을 입력하세요.<br>본 작품과 보고 싶은 작품을 한곳에 기록합니다.</span></p>
-    <div class="hero-foot">
-      <span>내 목록 ${state.byId.size}편 · 본 작품 ${watched}편</span>
-      <button class="circle-go" data-action="nav" data-view="library" aria-label="내 목록으로">${ICON.chev}</button>
-      <span>${state.lib.status === 'ready' ? 'Supabase에 저장 중' : 'Supabase 연결 필요'}</span>
-    </div>
-    ${cap}
-  </section>`;
-
-  const dated = entries.filter(e => e.status === 'watched' && e.watched_on);
-  if (dated.length) {
+  let html = heroHTML();
+  const rw = recentWatched(state.recentOrder);
+  if (rw.total) {
     const ord = state.recentOrder;
-    const key = e => String(e.watched_on).slice(0, 10) + String(e.updated_at || '');
-    const list = dated.sort((a, b) => ord === 'asc' ? key(a).localeCompare(key(b)) : key(b).localeCompare(key(a))).slice(0, 20);
     html += `<div class="row-head">
       <h2><span class="l">${ord === 'asc' ? '처음 ' : '최근 '}</span><b>감상한 작품</b></h2>
       <div class="row-tools">
@@ -1243,14 +1808,13 @@ function searchIdleHTML() {
           <button data-action="recent-order" data-v="desc" class="${ord === 'desc' ? 'on' : ''}">최근 감상일순</button>
           <button data-action="recent-order" data-v="asc" class="${ord === 'asc' ? 'on' : ''}">최초 감상일순</button>
         </div>
-        <button class="linkbtn" data-action="recent-all">전체 보기</button>
+        <button class="linkbtn" data-action="recent-all">전체 ${num(rw.total)}편 보기</button>
       </div>
     </div>
-    ${stripHTML('recent-' + ord, list.map(e => pcardHTML(e.title, e, { watched: true })).join(''))}`;
-  } else if (entries.length) {
-    const recent = entries.slice().sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at))).slice(0, 20);
+    ${stripHTML('recent-' + ord, rw.list.map(e => pcardHTML(e.title, e, { watched: true })).join(''))}`;
+  } else if (state.byId.size) {
     html += `<div class="row-head"><h2><span class="l">최근 </span><b>기록한 작품</b></h2><p>감상일을 입력하면 감상일 기준으로 정렬됩니다</p></div>
-    ${stripHTML('recent', recent.map(e => pcardHTML(e.title, e)).join(''))}`;
+    ${stripHTML('recent', recentAny().map(e => pcardHTML(e.title, e)).join(''))}`;
   }
   if (state.trending.status === 'ready' && state.trending.items.length) {
     html += `<div class="row-head"><h2><span class="l">이번 주 </span><b>인기 작품</b></h2><p>TMDB 트렌딩</p></div>
@@ -1259,13 +1823,6 @@ function searchIdleHTML() {
     html += stripHTML('trending-skel', Array.from({ length: 8 }, () => '<div class="skel" style="aspect-ratio:2/3"></div>').join(''));
   }
   return html;
-}
-
-/* 이미 캐시된 이미지는 다시 그릴 때 페이드 없이 바로 표시 (재렌더 깜빡임 방지) */
-function settleImages(root) {
-  $$('.hero-art img, .poster img', root).forEach(img => {
-    if (img.complete && img.naturalWidth) { img.style.transition = 'none'; img.classList.add('ld'); void img.offsetWidth; img.style.transition = ''; }
-  });
 }
 
 /* ════════════ 빠른 추가 ════════════ */
@@ -1283,8 +1840,7 @@ async function quickAdd(id, status, btn) {
       method: 'POST', prefer: 'resolution=merge-duplicates,return=representation',
       body: [{ title_id: id, status, updated_at: now }]
     });
-    const row = { ...rows[0], rating: rows[0].rating == null ? null : Number(rows[0].rating), title: t };
-    state.byId.set(id, row);
+    putEntry({ ...rows[0], title: t });
     toast(`‘${t.title}’을(를) ${statusLabel(status)}에 저장했습니다.`, 'ok');
     renderAll();
   } catch (e) {
@@ -1305,9 +1861,15 @@ function draftFrom(entry) {
   };
 }
 const isDirty = () => { const d = state.detail; return !!d && JSON.stringify(d.draft) !== JSON.stringify(d.base); };
+let viewStale = false;   // 모달 뒤 화면은 닫을 때 한 번만 다시 그림
+
+function refreshSavedTitle(id, full) {
+  const s = state.byId.get(id); if (!s) return;
+  s.title = lightTitle(full); prep(s); state.libVer++; persist(); viewStale = true;
+}
 
 async function openDetail(id) {
-  const [type, tid] = id.split(':');
+  const [type, tid] = String(id).split(':');
   if (!type || !tid) return;
   const saved = state.byId.get(id);
   const seed = saved ? saved.title : state.seeds.get(id);
@@ -1317,7 +1879,8 @@ async function openDetail(id) {
   $('#detailRoot').hidden = false; document.body.classList.add('lock');
   $('#detailRoot').scrollTop = 0;
   renderDetailInfo(); renderRecord();
-  setTimeout(() => $('#detailRoot .modal-close').focus({ preventScroll: true }), 30);
+  heroSchedule();
+  setTimeout(() => { const b = $('#detailRoot .modal-close'); b && b.focus({ preventScroll: true }); }, 30);
 
   const d = state.detail;
   let full = hasFull(seed) ? seed : null;
@@ -1325,14 +1888,23 @@ async function openDetail(id) {
     try { const rows = await sb(`titles?id=eq.${encodeURIComponent(id)}&select=*`); if (rows && rows[0] && hasFull(rows[0])) full = rows[0]; } catch {}
   }
   if (state.detail !== d) return;
-  if (full) { d.data = full; d.loading = false; renderDetailInfo(); }
+  if (full) {
+    d.data = full; d.loading = false; renderDetailInfo();
+    // 예전에 저장된 작품: 배우 검색 색인(people)이 비어 있으면 조용히 채움
+    if (HAS_PEOPLE !== false && !full.people && (full.cast_members || []).length && saved) {
+      const people = peopleOf(full);
+      sb(`titles?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', body: { people }, prefer: 'return=minimal' })
+        .then(() => { full.people = people; refreshSavedTitle(id, full); if (HAS_PEOPLE === null) setHasPeople(true); })
+        .catch(e => { if (isPeopleErr(e)) setHasPeople(false); });
+    }
+  }
   const stale = full && Date.now() - new Date(full.fetched_at).getTime() > CACHE_MS;
   if (!full || stale) {
     try {
       const fresh = await fetchTitle(type, tid);
       if (state.detail !== d) return;
       d.data = fresh; d.loading = false; d.error = null;
-      if (saved) saved.title = fresh;
+      if (saved) refreshSavedTitle(id, fresh);
       renderDetailInfo();
       cacheTitle(fresh).catch(e => { if (e.kind === 'schema' || e.kind === 'auth') toast(e.message, 'error'); });
     } catch (e) {
@@ -1348,16 +1920,18 @@ function closeDetail(force) {
   if (!force && isDirty() && !confirm('저장하지 않은 감상 기록이 있습니다. 닫을까요?')) return;
   state.detail = null;
   $('#detailRoot').hidden = true; document.body.classList.remove('lock');
+  if (viewStale) { viewStale = false; renderAll(); }
+  heroSchedule();
 }
 
 function renderDetailInfo() {
   const d = state.detail; if (!d) return;
   const t = d.data || {};
   const movie = d.type === 'movie';
-  const bd = IMG(t.backdrop_path, 'w1280');
+  const bd = IMG(t.backdrop_path, mqMobile.matches ? 'w780' : 'w1280');
   $('#dHero').style.setProperty('--bd', bd ? `url("${bd}")` : 'none');
 
-  $('#dPoster').innerHTML = `${t.title ? posterHTML(t, 'w500') : '<div class="poster skel"></div>'}
+  $('#dPoster').innerHTML = `${t.title ? posterHTML(t, mqMobile.matches ? 'w342' : 'w500') : '<div class="poster skel"></div>'}
     <div class="d-score"><span>TMDB 평점</span><b>${t.vote_average ? Number(t.vote_average).toFixed(1) : '–'}<small style="font-size:12px;color:var(--dim)"> / 10</small></b></div>`;
 
   if (d.error && !t.title) {
@@ -1391,9 +1965,10 @@ function renderDetailInfo() {
     <p class="overview">${esc(t.overview || (d.loading ? '…' : '등록된 줄거리가 없습니다.'))}</p>
     ${cast.length ? `<h4 class="sec">주요 출연진</h4>
     <div class="cast">${cast.map(p => `<figure>
-      <div class="face">${p.profile_path ? `<img src="${IMG(p.profile_path, 'w185')}" alt="" loading="lazy">` : esc((p.name || '?').slice(0, 1))}</div>
+      <div class="face">${p.profile_path ? `<img src="${IMG(p.profile_path, 'w185')}" alt="" loading="lazy" decoding="async">` : esc((p.name || '?').slice(0, 1))}</div>
       <figcaption><b>${esc(p.name)}</b><span>${esc(p.character || '')}</span></figcaption></figure>`).join('')}</div>` : ''}
     ${!d.loading && hasFull(t) ? `<p style="margin-top:22px"><button class="linkbtn" data-action="detail-refresh">TMDB에서 정보 새로고침</button> <span style="font-size:12px;color:var(--dim)">마지막 갱신 ${fmtDate(t.fetched_at)}</span></p>` : ''}`;
+  settleImages($('#dPoster'));
 }
 const tvStatus = s => ({ 'Returning Series': '방영 중', 'Ended': '종영', 'Canceled': '취소', 'In Production': '제작 중', 'Planned': '예정', 'Pilot': '파일럿', 'Released': '개봉', 'Post Production': '후반 작업' }[s] || s);
 
@@ -1488,13 +2063,13 @@ async function saveRecord() {
       review: r.review.trim() || null, liked: r.liked, favorite: r.favorite, updated_at: new Date().toISOString()
     };
     const rows = await sb('entries?on_conflict=title_id', { method: 'POST', body: [row], prefer: 'resolution=merge-duplicates,return=representation' });
-    const savedRow = { ...rows[0], rating: rows[0].rating == null ? null : Number(rows[0].rating), title: d.data };
     const wasNew = !state.byId.has(d.id);
-    state.byId.set(d.id, savedRow);
+    putEntry({ ...rows[0], title: d.data });
+    const savedRow = state.byId.get(d.id);
     if (state.detail !== d) { renderAll(); return; }
     d.base = draftFrom(savedRow); d.draft = { ...d.base }; d.saving = false;
     toast(wasNew ? `‘${d.data.title}’을(를) 내 목록에 저장했습니다.` : '감상 기록을 저장했습니다.', 'ok');
-    renderAll(); renderDetailInfo(); renderRecord();
+    viewStale = true; renderNotice(); renderDetailInfo(); renderRecord();
   } catch (e) {
     d.saving = false; syncRecord();
     toast(e.message, 'error');
@@ -1507,186 +2082,458 @@ async function removeRecord() {
   if (!confirm(`‘${saved.title.title}’을(를) 내 목록에서 삭제할까요?\n별점과 리뷰도 함께 삭제됩니다.`)) return;
   try {
     await sb(`entries?title_id=eq.${encodeURIComponent(d.id)}`, { method: 'DELETE' });
-    state.byId.delete(d.id);
+    delEntry(d.id);
     d.base = draftFrom(null); d.draft = { ...d.base };
     toast('내 목록에서 삭제했습니다.', 'ok');
-    renderAll(); renderDetailInfo(); renderRecord();
+    viewStale = true; renderNotice(); renderDetailInfo(); renderRecord();
   } catch (e) { toast(e.message, 'error'); }
 }
 
-/* ════════════ 내 목록 ════════════ */
-function matchesQuery(e, q) {
-  if (!q) return true;
-  const t = e.title;
-  const hay = [t.title, t.original_title, ...(t.directors || []).map(p => p.name), ...(t.cast_members || []).map(p => p.name), e.review].join(' ').toLowerCase().replace(/\s+/g, '');
-  return hay.includes(q.toLowerCase().replace(/\s+/g, ''));
-}
-function filteredEntries() {
-  const f = state.filters;
-  let arr = [...state.byId.values()].filter(e =>
-    (f.type === 'all' || e.title.media_type === f.type) &&
-    (f.status === 'all' || e.status === f.status) &&
-    (!f.genre || (e.title.genres || []).includes(f.genre)) &&
-    (!f.rating || (f.rating === 'none' ? !e.rating : Number(e.rating) === Number(f.rating))) &&
-    (!f.liked || e.liked) && (!f.favorite || e.favorite) &&
-    matchesQuery(e, f.q));
-  const ko = (a, b) => String(a.title.title).localeCompare(String(b.title.title), 'ko');
-  const watchKey = e => (e.watched_on ? String(e.watched_on).slice(0, 10) : String(e.updated_at || '').slice(0, 10)) + String(e.updated_at || '');
+/* ════════════ 내 목록: 필터 · 정렬 ════════════ */
+const FILTER_DEFAULT = { q: '', type: 'all', status: 'all', genre: '', rating: '', liked: false, favorite: false, period: '', decade: '', country: '' };
+const filteredEntries = memo(fk => {
+  const f = JSON.parse(fk);
+  const q = norm(f.q);
+  const arr = [];
+  for (const e of allEntries()) {
+    const t = e.title;
+    if (f.type !== 'all' && t.media_type !== f.type) continue;
+    if (f.status !== 'all' && e.status !== f.status) continue;
+    if (f.genre && !(t.genres || []).includes(f.genre)) continue;
+    if (f.rating && (f.rating === 'none' ? e.rating : e.rating !== Number(f.rating))) continue;
+    if (f.liked && !e.liked) continue;
+    if (f.favorite && !e.favorite) continue;
+    if (f.period && !(e.watched_on && e.watched_on.startsWith(f.period))) continue;
+    if (f.decade && !(e._ry && e._ry.slice(0, 3) === f.decade.slice(0, 3))) continue;
+    if (f.country && !(t.countries || []).includes(f.country)) continue;
+    if (q && !e._hay.includes(q)) continue;
+    arr.push(e);
+  }
+  const ko = (a, b) => coll.compare(a.title.title || '', b.title.title || '');
+  const str = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
   const sorters = {
-    recent: (a, b) => watchKey(b).localeCompare(watchKey(a)),
-    recent_asc: (a, b) => (!!b.watched_on - !!a.watched_on) || watchKey(a).localeCompare(watchKey(b)),
-    added: (a, b) => String(b.created_at).localeCompare(String(a.created_at)),
+    recent: (a, b) => str(b._wk, a._wk),
+    recent_asc: (a, b) => (!!b.watched_on - !!a.watched_on) || str(a._wk, b._wk),
+    added: (a, b) => str(String(b.created_at), String(a.created_at)),
     title: ko,
-    rating: (a, b) => (b.rating || 0) - (a.rating || 0) || ko(a, b),
-    release: (a, b) => String(b.title.release_date || '').localeCompare(String(a.title.release_date || '')) || ko(a, b)
+    rating: (a, b) => (b.rating || 0) - (a.rating || 0) || str(b._wk, a._wk),
+    release: (a, b) => str(String(b.title.release_date || ''), String(a.title.release_date || '')) || ko(a, b)
   };
   return arr.sort(sorters[f.sort] || sorters.recent);
-}
+});
+const genreCounts = memo(() => {
+  const m = new Map();
+  state.byId.forEach(e => (e.title.genres || []).forEach(g => m.set(g, (m.get(g) || 0) + 1)));
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+});
+const libCounts = memo(() => {
+  let mv = 0, tv = 0, w = 0; state.byId.forEach(e => { e.title.media_type === 'tv' ? tv++ : mv++; if (e.status === 'watched') w++; });
+  return { mv, tv, w, all: state.byId.size };
+});
 
+let toolbarVer = -1;
 function syncToolbar() {
   const f = state.filters;
-  $$('.toolbar .seg button').forEach(b => b.classList.toggle('on', f[b.dataset.k] === b.dataset.v));
-  $$('.toolbar [data-action="lf-toggle"]').forEach(b => b.classList.toggle('on', !!f[b.dataset.k]));
-  const genres = new Map();
-  state.byId.forEach(e => (e.title.genres || []).forEach(g => genres.set(g, (genres.get(g) || 0) + 1)));
+  $$('.lib-bar .seg[data-filter] button').forEach(b => b.classList.toggle('on', f[b.dataset.k] === b.dataset.v));
+  $$('.lib-bar [data-action="lf-toggle"]').forEach(b => b.classList.toggle('on', !!f[b.dataset.k]));
+  $$('.view-seg button').forEach(b => b.classList.toggle('on', b.dataset.v === state.libMode));
   const gSel = $('#fGenre');
-  gSel.innerHTML = '<option value="">모든 장르</option>' + [...genres.entries()].sort((a, b) => b[1] - a[1]).map(([g, n]) => `<option value="${esc(g)}">${esc(g)} (${n})</option>`).join('');
-  if (f.genre && !genres.has(f.genre)) gSel.insertAdjacentHTML('beforeend', `<option value="${esc(f.genre)}">${esc(f.genre)} (0)</option>`);
+  if (toolbarVer !== state.libVer || (f.genre && ![...gSel.options].some(o => o.value === f.genre))) {
+    toolbarVer = state.libVer;
+    const gs = genreCounts();
+    gSel.innerHTML = '<option value="">모든 장르</option>' + gs.map(([g, n]) => `<option value="${esc(g)}">${esc(g)} (${num(n)})</option>`).join('')
+      + (f.genre && !gs.some(x => x[0] === f.genre) ? `<option value="${esc(f.genre)}">${esc(f.genre)} (0)</option>` : '');
+    const rSel = $('#fRating');
+    if (!rSel.options.length) rSel.innerHTML = '<option value="">모든 별점</option>' + [5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, .5].map(v => `<option value="${v}">★ ${v.toFixed(1)}</option>`).join('') + '<option value="none">별점 없음</option>';
+  }
   gSel.value = f.genre;
-  const rSel = $('#fRating');
-  rSel.innerHTML = '<option value="">모든 별점</option>' + [5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, .5].map(v => `<option value="${v}">★ ${v.toFixed(1)}</option>`).join('') + '<option value="none">별점 없음</option>';
-  rSel.value = f.rating;
+  $('#fRating').value = f.rating;
   $('#fSort').value = f.sort;
   if ($('#libQ').value !== f.q) $('#libQ').value = f.q;
 }
+const periodLabel = p => p.length === 4 ? `${p}년 감상` : p.length === 7 ? `${p.slice(0, 4)}년 ${Number(p.slice(5))}월 감상` : `${fmtDate(p)} 감상`;
+const decadeLabel = d => `${d}년대 작품`;
 
 function renderLibrary() {
   syncToolbar();
   const body = $('#libBody');
-  const all = [...state.byId.values()];
-  const w = all.filter(e => e.status === 'watched').length;
-  $('#libSummary').textContent = `영화 ${all.filter(e => e.title.media_type === 'movie').length}편, 드라마 ${all.filter(e => e.title.media_type === 'tv').length}편 · 본 작품 ${w}편, 보고 싶은 작품 ${all.length - w}편`;
+  const c = libCounts();
+  $('#libSummary').textContent = `영화 ${num(c.mv)}편, 드라마 ${num(c.tv)}편 · 본 작품 ${num(c.w)}편, 보고 싶은 작품 ${num(c.all - c.w)}편`;
 
   const f = state.filters, chips = [];
   if (f.genre) chips.push(['genre', `장르: ${f.genre}`]);
   if (f.rating) chips.push(['rating', f.rating === 'none' ? '별점 없음' : `별점 ${Number(f.rating).toFixed(1)}`]);
+  if (f.period) chips.push(['period', periodLabel(f.period)]);
+  if (f.decade) chips.push(['decade', decadeLabel(f.decade)]);
+  if (f.country) chips.push(['country', `국가: ${regionName(f.country)}`]);
+  if (f.q) chips.push(['q', `검색: ${f.q}`]);
   const af = $('#activeFilters');
-  const anyFilter = f.q || f.type !== 'all' || f.status !== 'all' || f.genre || f.rating || f.liked || f.favorite;
+  const anyFilter = f.q || f.type !== 'all' || f.status !== 'all' || f.genre || f.rating || f.liked || f.favorite || f.period || f.decade || f.country;
   af.hidden = !anyFilter;
   af.innerHTML = chips.map(([k, l]) => `<button class="pill xs on" data-action="lf-clear" data-k="${k}">${esc(l)} ×</button>`).join('') + (anyFilter ? '<button class="linkbtn" data-action="lf-reset">필터 모두 해제</button>' : '');
 
-  if (state.lib.status === 'loading' || state.lib.status === 'idle') {
-    body.innerHTML = `<div class="grid">${Array.from({ length: 12 }, () => '<div><div class="skel" style="aspect-ratio:2/3"></div><div class="skel" style="height:14px;margin-top:10px;width:70%"></div></div>').join('')}</div>`;
-    return;
-  }
-  if (state.lib.status === 'noconfig') { body.innerHTML = emptyHTML('저장소가', '연결되지 않았습니다', 'Supabase URL과 Anon Key를 입력하면 내 목록이 저장되고 다시 불러와집니다.', '<button class="btn primary" data-action="settings">설정 열기</button>'); return; }
-  if (state.lib.status === 'error') { body.innerHTML = emptyHTML('목록을', '불러오지 못했습니다', esc(state.lib.error.message), '<button class="btn primary" data-action="reload-lib">다시 불러오기</button> <button class="btn" data-action="settings">설정</button>'); return; }
-  if (!all.length) { body.innerHTML = emptyHTML('아직', '기록이 없습니다', '작품을 검색해서 본 작품이나 보고 싶은 작품으로 저장해 보세요.', '<button class="btn primary" data-action="nav" data-view="search">작품 검색하기</button>'); return; }
+  const bail = html => { body.innerHTML = html; VL.root = null; };
+  if (state.lib.status === 'loading' || state.lib.status === 'idle') { bail(loadingHTML()); paintProgress(); return; }
+  if (state.lib.status === 'noconfig') { bail(emptyHTML('저장소가', '연결되지 않았습니다', 'Supabase URL과 Anon Key를 입력하면 내 목록이 저장되고 다시 불러와집니다.', '<button class="btn primary" data-action="settings">설정 열기</button>')); return; }
+  if (state.lib.status === 'error') { bail(emptyHTML('목록을', '불러오지 못했습니다', esc(state.lib.error.message), '<button class="btn primary" data-action="reload-lib">다시 불러오기</button> <button class="btn" data-action="settings">설정</button>')); return; }
+  if (!state.byId.size) { bail(emptyHTML('아직', '기록이 없습니다', '작품을 검색해서 본 작품이나 보고 싶은 작품으로 저장해 보세요.', '<button class="btn primary" data-action="nav" data-view="search">작품 검색하기</button>')); return; }
 
-  const list = filteredEntries();
-  if (!list.length) { body.innerHTML = emptyHTML('조건에 맞는', '작품이 없습니다', '필터를 줄이거나 다른 검색어를 입력해 보세요.', '<button class="btn primary" data-action="lf-reset">필터 모두 해제</button>'); return; }
+  const list = filteredEntries(JSON.stringify(f));
+  if (!list.length) { bail(emptyHTML('조건에 맞는', '작품이 없습니다', '필터를 줄이거나 다른 검색어를 입력해 보세요.', '<button class="btn primary" data-action="lf-reset">필터 모두 해제</button>')); return; }
 
-  if (f.sort === 'rating') {
-    const groups = new Map();
-    list.forEach(e => { const k = e.rating ? e.rating.toFixed(1) : 'none'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); });
-    body.innerHTML = [...groups.entries()].map(([k, arr]) => `
-      <div class="group-title">${k === 'none' ? '<b>별점 없음</b>' : `${starsHTML(Number(k), 'md')}<b>${k}</b>`}<span>${arr.length}편</span></div>
-      <div class="grid">${arr.map(e => pcardHTML(e.title, e)).join('')}</div>`).join('');
-  } else {
-    body.innerHTML = `<div class="grid">${list.map(e => pcardHTML(e.title, e)).join('')}</div>`;
+  if (!VL.root || !body.contains(VL.root)) {
+    body.innerHTML = `<div class="lib-count"><span id="libCount"></span></div><div class="vl" id="vl"></div>`;
+    VL.root = $('#vl', body); VL.key = ''; VL.width = 0;
   }
+  $('#libCount').innerHTML = `<b>${num(list.length)}</b>편${list.length !== c.all ? ` <span>/ 전체 ${num(c.all)}편</span>` : ''}`;
+  const key = state.libVer + '|' + JSON.stringify(f) + '|' + state.libMode;
+  if (VL.key !== key) { VL.key = key; VL.list = list; VL.width = 0; }
+  vlLayout(); vlPaint(true);
+}
+
+/* ════════════ 가상 스크롤 (수천~수만 편) ════════════ */
+const VL = { root: null, key: '', list: [], rows: [], tops: [], total: 0, width: 0, cols: 1, gap: 18, els: new Map(), from: 0, to: -1, lastY: 0, lastT: 0, fast: false };
+function vlLayout() {
+  if (!VL.root) return;
+  const w = VL.root.clientWidth;
+  if (!w || w === VL.width) return;
+  VL.width = w;
+  const mob = w < 700, grid = state.libMode === 'grid';
+  let cols = 1, rowH, rowGap, gap = 0;
+  if (grid) {
+    gap = mob ? 10 : 18;
+    const minW = mob ? (w < 360 ? 96 : 104) : 150;
+    cols = clamp(Math.floor((w + gap) / (minW + gap)), 2, 10);
+    const cardW = (w - gap * (cols - 1)) / cols;
+    rowH = Math.round(cardW * 1.5 + (mob ? 62 : 68)); rowGap = mob ? 14 : 22;
+  } else { rowH = mob ? 82 : 96; rowGap = mob ? 8 : 10; }
+  const HEAD = 52;
+  const rows = [];
+  const grouped = state.filters.sort === 'rating';
+  const pushItems = items => { for (let i = 0; i < items.length; i += cols) rows.push({ k: 'c', items: items.slice(i, i + cols), h: rowH, g: rowGap }); };
+  if (grouped) {
+    let key = null, buf = [];
+    const flush = () => { if (!buf.length) return; rows.push({ k: 'h', key, n: buf.length, h: HEAD, g: 0 }); pushItems(buf); buf = []; };
+    for (const e of VL.list) { const k = e.rating ? e.rating.toFixed(1) : 'none'; if (k !== key) { flush(); key = k; } buf.push(e); }
+    flush();
+  } else pushItems(VL.list);
+  const tops = new Array(rows.length); let y = 0;
+  for (let i = 0; i < rows.length; i++) { tops[i] = y; y += rows[i].h + rows[i].g; }
+  VL.rows = rows; VL.tops = tops; VL.total = Math.max(0, y - (rows.length ? rows[rows.length - 1].g : 0));
+  VL.cols = cols; VL.gap = gap;
+  VL.root.style.height = VL.total + 'px';
+  VL.els.forEach(el => el.remove()); VL.els.clear(); VL.from = 0; VL.to = -1;
+}
+function vlRowHTML(r) {
+  if (r.k === 'h') return `${r.key === 'none' ? '<b>별점 없음</b>' : `${mstars(Number(r.key))}<b>${r.key}</b>`}<span>${num(r.n)}편</span>`;
+  if (state.libMode === 'grid') return r.items.map(e => pcardHTML(e.title, e, { defer: true })).join('');
+  return r.items.map(lrowHTML).join('');
+}
+function lrowHTML(e) {
+  const t = e.title;
+  const country = t.countries && t.countries[0] ? regionName(t.countries[0]) : '';
+  const sub = [typeLabel(t.media_type), country, (t.genres || []).slice(0, 2).join(', ')].filter(Boolean).join(' · ');
+  const src = IMG(t.poster_path, 'w154');
+  return `<article class="lrow" data-action="open" data-id="${esc(e.title_id)}" tabindex="0" role="button" aria-label="${esc(t.title)} 상세 보기">
+    <div class="lthumb">${src ? `<img class="pimg" data-src="${src}" alt="" data-t="" decoding="async">` : noimgHTML('')}</div>
+    <div class="lmain"><h3>${esc(t.title)}<span class="yr">${yearOf(t.release_date) || ''}</span></h3><p class="sub">${esc(sub)}</p>${e.review ? `<p class="rev">${esc(String(e.review).slice(0, 140))}</p>` : ''}</div>
+    <div class="lside">
+      ${e.rating ? `<span class="rt">${mstars(e.rating)}<b>${e.rating.toFixed(1)}</b></span>` : `<span>${e.status === 'want' ? '보고 싶은 작품' : '별점 없음'}</span>`}
+      <span>${e.watched_on ? '감상 ' + fmtDate(e.watched_on) : e.status === 'want' ? '' : '감상일 없음'}</span>
+      ${e.liked || e.favorite ? `<span class="ic">${e.liked ? ICON.heartFill : ''}${e.favorite ? ICON.starFill : ''}</span>` : ''}
+    </div>
+  </article>`;
+}
+function vlFirst(y) { // tops[i] + h >= y 인 첫 행
+  const t = VL.tops, r = VL.rows; let lo = 0, hi = t.length - 1, ans = t.length;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (t[m] + r[m].h >= y) { ans = m; hi = m - 1; } else lo = m + 1; }
+  return ans;
+}
+function vlPaint(force) {
+  if (!VL.root || state.view !== 'library' || !VL.rows.length) return;
+  const rect = VL.root.getBoundingClientRect(), vh = window.innerHeight;
+  const buf = vh * (COARSE ? .9 : 1.3);
+  const y0 = -rect.top - buf, y1 = -rect.top + vh + buf;
+  const from = vlFirst(Math.max(0, y0));
+  let to = from; while (to + 1 < VL.rows.length && VL.tops[to + 1] <= y1) to++;
+  if (!force && from === VL.from && to === VL.to) return;
+  VL.els.forEach((el, i) => { if (i < from || i > to) { el.remove(); VL.els.delete(i); } });
+  const frag = document.createDocumentFragment();
+  for (let i = from; i <= to; i++) {
+    if (VL.els.has(i)) continue;
+    const r = VL.rows[i], el = document.createElement('div');
+    el.className = 'vrow ' + (r.k === 'h' ? 'vhead' : state.libMode === 'grid' ? 'vgrid' : '');
+    el.style.top = VL.tops[i] + 'px'; el.style.height = r.h + 'px';
+    if (r.k === 'c' && state.libMode === 'grid') { el.style.gridTemplateColumns = `repeat(${VL.cols},minmax(0,1fr))`; el.style.columnGap = VL.gap + 'px'; }
+    el.innerHTML = vlRowHTML(r);
+    frag.appendChild(el); VL.els.set(i, el);
+  }
+  VL.root.appendChild(frag);
+  VL.from = from; VL.to = to;
+  if (!VL.fast) vlFlush();
+}
+/* 스크롤이 느려지거나 멈추면 그때 이미지 요청 */
+function vlFlush() {
+  if (!VL.root) return;
+  VL.root.querySelectorAll('img[data-src]').forEach(img => { img.src = img.dataset.src; img.removeAttribute('data-src'); });
+}
+const vlSettle = debounce(() => { VL.fast = false; vlFlush(); }, 120);
+function vlAnchor() { // 레이아웃이 바뀌어도 보던 위치 유지
+  if (!VL.root || !VL.rows.length) return null;
+  const rect = VL.root.getBoundingClientRect();
+  if (rect.top > 0) return null;
+  const i = vlFirst(-rect.top + parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tb') || 0));
+  const r = VL.rows[Math.min(i, VL.rows.length - 1)];
+  return r && r.items ? r.items[0].title_id : null;
+}
+function vlRestore(id) {
+  if (!id) return;
+  const i = VL.rows.findIndex(r => r.items && r.items.some(e => e.title_id === id));
+  if (i < 0) return;
+  const top = VL.root.getBoundingClientRect().top + window.scrollY + VL.tops[i] - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tb')) || 0) - 150;
+  window.scrollTo(0, Math.max(0, top));
 }
 
 /* ════════════ 내 영화관 ════════════ */
+const MONTHS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+const statsData = memo(scope => {
+  const all = allEntries();
+  const yearMap = new Map(); let firstDate = '';
+  for (const e of all) if (e.status === 'watched' && e.watched_on) {
+    const y = e.watched_on.slice(0, 4); yearMap.set(y, (yearMap.get(y) || 0) + 1);
+    if (!firstDate || e.watched_on < firstDate) firstDate = e.watched_on;
+  }
+  const years = [...yearMap.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  const isAll = scope === 'all';
+  const base = isAll ? all : all.filter(e => e.status === 'watched' && e.watched_on && e.watched_on.startsWith(scope));
+  const s = { scope, isAll, years, firstDate, total: base.length, movies: 0, tvs: 0, watched: 0, want: 0, liked: 0, fav: 0, reviews: 0,
+    rated: 0, rsum: 0, minMovie: 0, minTv: 0, diffSum: 0, diffN: 0, bins: new Map(), none: 0 };
+  const gm = new Map(), dm = new Map(), cm = new Map(), pm = new Map();
+  for (const e of base) {
+    const t = e.title;
+    t.media_type === 'tv' ? s.tvs++ : s.movies++;
+    if (e.status === 'watched') {
+      s.watched++;
+      if (t.media_type === 'movie') s.minMovie += t.runtime || 0; else s.minTv += (t.episodes || 0) * (t.runtime || 0);
+    } else s.want++;
+    if (e.liked) s.liked++;
+    if (e.favorite) s.fav++;
+    if (e.review) s.reviews++;
+    if (e.rating) {
+      s.rated++; s.rsum += e.rating; s.bins.set(e.rating, (s.bins.get(e.rating) || 0) + 1);
+      if (t.vote_average > 0) { s.diffSum += e.rating - t.vote_average / 2; s.diffN++; }
+    } else s.none++;
+    for (const g of t.genres || []) { const o = gm.get(g) || { n: 0, sum: 0, r: 0 }; o.n++; if (e.rating) { o.sum += e.rating; o.r++; } gm.set(g, o); }
+    if (e._ry) { const d = String(Math.floor(Number(e._ry) / 10) * 10); dm.set(d, (dm.get(d) || 0) + 1); }
+    for (const c of t.countries || []) cm.set(c, (cm.get(c) || 0) + 1);
+    for (const p of t.directors || []) { if (!p || !p.name) continue; const o = pm.get(p.name) || { n: 0, sum: 0, r: 0 }; o.n++; if (e.rating) { o.sum += e.rating; o.r++; } pm.set(p.name, o); }
+  }
+  s.avg = s.rated ? s.rsum / s.rated : 0;
+  s.diff = s.diffN >= 3 ? s.diffSum / s.diffN : null;
+  s.genres = [...gm.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 10);
+  s.decades = [...dm.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(-10);
+  s.countries = [...cm.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
+  s.directors = [...pm.entries()].filter(x => x[1].n >= 2).sort((a, b) => b[1].n - a[1].n || (b[1].r ? b[1].sum / b[1].r : 0) - (a[1].r ? a[1].sum / a[1].r : 0)).slice(0, 8);
+
+  // 감상 달력: 선택한 해(전체 기간이면 가장 최근 해)
+  s.heatYear = isAll ? (years[0] ? years[0][0] : String(new Date().getFullYear())) : scope;
+  s.days = new Map(); s.months = new Array(12).fill(0);
+  for (const e of all) if (e.status === 'watched' && e.watched_on && e.watched_on.startsWith(s.heatYear)) {
+    s.days.set(e.watched_on, (s.days.get(e.watched_on) || 0) + 1);
+    s.months[Number(e.watched_on.slice(5, 7)) - 1]++;
+  }
+  const dk = [...s.days.keys()].sort();
+  let best = 0, run = 0, prev = 0;
+  for (const k of dk) { const t = Date.parse(k); run = prev && t - prev === 864e5 ? run + 1 : 1; best = Math.max(best, run); prev = t; }
+  s.streak = best; s.activeDays = dk.length;
+  s.maxDay = dk.reduce((m, k) => Math.max(m, s.days.get(k)), 0);
+  const bm = s.months.indexOf(Math.max(...s.months)); s.busiest = s.months[bm] ? bm : -1;
+  s.heatTotal = s.months.reduce((a, b) => a + b, 0);
+
+  // 포스터 벽: 높은 별점·즐겨찾기 우선
+  const withPoster = base.filter(e => e.title.poster_path);
+  withPoster.sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.favorite - a.favorite) || (a._wk < b._wk ? 1 : -1));
+  s.wall = withPoster.slice(0, 24);
+  const byRecent = (a, b) => (a._wk < b._wk ? 1 : a._wk > b._wk ? -1 : 0);
+  s.top = base.filter(e => e.rating === 5).sort(byRecent);
+  s.favs = base.filter(e => e.favorite).sort((a, b) => (b.rating || 0) - (a.rating || 0) || byRecent(a, b));
+  s.wants = all.filter(e => e.status === 'want').sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  return s;
+});
+
+/* 내 영화관 숫자·막대를 누르면 같은 조건으로 내 목록을 연다 (연도 선택 중이면 그 해로 한정) */
+function sfAttr(o = {}) {
+  const a = { ...o };
+  if (state.stats.scope !== 'all' && !a.period) a.period = state.stats.scope;
+  return 'data-action="stat-filter" ' + Object.entries(a).map(([k, v]) => `data-${k}="${esc(v)}"`).join(' ');
+}
+const hoursText = m => m >= 60 ? `${num(Math.round(m / 60))}<small>시간</small>` : `${num(m)}<small>분</small>`;
+const isLeap = y => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+
+function calHTML(year, days) {
+  const y = Number(year);
+  const pad = new Date(Date.UTC(y, 0, 1)).getUTCDay();
+  const n = isLeap(y) ? 366 : 365;
+  const weeks = Math.ceil((pad + n) / 7);
+  const mo = new Array(weeks).fill('');
+  for (let m = 0; m < 12; m++) {
+    const doy = Math.round((Date.UTC(y, m, 1) - Date.UTC(y, 0, 1)) / 864e5);
+    const w = Math.floor((pad + doy) / 7);
+    if (!mo[w]) mo[w] = MONTHS[m];
+  }
+  let h = '';
+  for (let w = 0; w < weeks; w++) {
+    h += `<span class="mo">${mo[w]}</span>`;
+    for (let d = 0; d < 7; d++) {
+      const idx = w * 7 + d - pad;
+      if (idx < 0 || idx >= n) { h += '<i class="pad"></i>'; continue; }
+      const date = new Date(Date.UTC(y, 0, 1 + idx)).toISOString().slice(0, 10);
+      const c = days.get(date) || 0;
+      if (!c) { h += '<i></i>'; continue; }
+      const lv = c === 1 ? 1 : c === 2 ? 2 : c < 5 ? 3 : 4;
+      h += `<i class="l${lv}" data-action="stat-filter" data-period="${date}" data-status="watched" title="${fmtDate(date)} · ${c}편"></i>`;
+    }
+  }
+  return `<div class="cal" role="img" aria-label="${y}년 감상 달력">${h}</div>`;
+}
+
 function renderStats() {
   const body = $('#statsBody');
   if (state.lib.status !== 'ready') { renderLibraryStateInto(body); return; }
-  const all = [...state.byId.values()];
-  if (!all.length) { body.innerHTML = emptyHTML('나의 영화관이', '비어 있습니다', '작품을 기록하면 이곳에 별점과 장르 통계가 쌓입니다.', '<button class="btn primary" data-action="nav" data-view="search">작품 검색하기</button>'); return; }
-
-  const movies = all.filter(e => e.title.media_type === 'movie'), tvs = all.filter(e => e.title.media_type === 'tv');
-  const watched = all.filter(e => e.status === 'watched'), want = all.filter(e => e.status === 'want');
-  const rated = all.filter(e => e.rating);
-  const avg = rated.length ? rated.reduce((s, e) => s + e.rating, 0) / rated.length : 0;
-  const minutes = watched.reduce((s, e) => s + (e.title.media_type === 'movie' ? (e.title.runtime || 0) : 0), 0);
-  const cnt = (arr, st) => arr.filter(e => e.status === st).length;
-
-  const bins = [.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map(v => [v, all.filter(e => e.rating === v).length]);
-  const noneCount = all.length - rated.length;
-  const maxBin = Math.max(1, ...bins.map(b => b[1]), noneCount);
-
-  const gm = new Map();
-  all.forEach(e => (e.title.genres || []).forEach(g => {
-    const o = gm.get(g) || { n: 0, sum: 0, r: 0 }; o.n++; if (e.rating) { o.sum += e.rating; o.r++; } gm.set(g, o);
-  }));
-  const genres = [...gm.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 12);
-  const maxG = Math.max(1, ...genres.map(g => g[1].n));
-  const favs = all.filter(e => e.favorite).sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  if (!state.byId.size) { body.innerHTML = emptyHTML('나의 영화관이', '비어 있습니다', '작품을 기록하면 이곳에 감상 달력과 별점·장르·감독 통계가 쌓입니다.', '<button class="btn primary" data-action="nav" data-view="search">작품 검색하기</button>'); return; }
+  let s = statsData(state.stats.scope);
+  if (!s.isAll && !s.years.some(y => y[0] === state.stats.scope)) { state.stats.scope = 'all'; s = statsData('all'); }
   const sp = saveStrips(body);
+  const mob = mqMobile.matches;
+  const scopeName = s.isAll ? '전체 기간' : `${s.scope}년`;
 
-  body.innerHTML = `
-  <div class="stats-hero">
-    <section class="glass big-count">
-      <div class="hero-top"><span class="pill">내 영화관</span><span class="hero-star">${ICON.asterisk}</span></div>
-      <div>
-        <div class="num">${all.length}<small>편</small></div>
-        <h1 class="display" style="font-size:clamp(26px,3vw,38px);margin-top:14px"><span class="l">STORIES</span><b>IN MY CINEMA</b></h1>
-      </div>
-      <div class="hero-foot" style="margin-top:24px">
-        <span>평균 별점 ${avg ? avg.toFixed(2) : '–'}</span>
-        <button class="circle-go" data-action="nav" data-view="library" aria-label="내 목록으로">${ICON.chev}</button>
-        <span>${minutes ? `영화 감상 ${Math.round(minutes / 60)}시간` : '감상 시간 집계 전'}</span>
-      </div>
-    </section>
-    <section class="glass">
-      <div class="kpis">
-        <button class="kpi" data-action="stat-filter" data-type="movie"><span>영화</span><b>${movies.length}</b></button>
-        <button class="kpi" data-action="stat-filter" data-type="tv"><span>드라마</span><b>${tvs.length}</b></button>
-        <button class="kpi" data-action="stat-filter" data-status="watched"><span>본 작품</span><b>${watched.length}</b></button>
-        <button class="kpi" data-action="stat-filter" data-status="want"><span>보고 싶은 작품</span><b>${want.length}</b></button>
-        <button class="kpi" data-action="stat-filter" data-liked="1"><span>좋아요</span><b>${all.filter(e => e.liked).length}</b></button>
-        <button class="kpi" data-action="stat-filter" data-favorite="1"><span>즐겨찾기</span><b>${favs.length}</b></button>
-      </div>
-    </section>
-  </div>
+  // ① 마퀴: 내 포스터 벽 + 큰 숫자
+  const wall = s.wall.slice(0, mob ? 16 : 24).map(e => `<div class="pw"><img class="pimg" src="${IMG(e.title.poster_path, 'w154')}" alt="" data-t="" decoding="async" loading="lazy"></div>`).join('');
+  const hoursM = s.minMovie + s.minTv;
+  const figs = s.isAll ? [
+    [`<span>본 작품</span><b>${num(s.watched)}</b>`, { status: 'watched' }],
+    [`<span>보고 싶은 작품</span><b>${num(s.want)}</b>`, { status: 'want' }],
+    [`<span>감상 시간${s.minTv ? ' (추정)' : ''}</span><b>${hoursText(hoursM)}</b>`, null],
+    [`<span>평균 별점</span><b>${s.avg ? s.avg.toFixed(2) : '–'}</b>`, { sort: 'rating', status: 'watched' }],
+    [`<span>리뷰 쓴 작품</span><b>${num(s.reviews)}</b>`, null]
+  ] : [
+    [`<span>영화</span><b>${num(s.movies)}</b>`, { type: 'movie' }],
+    [`<span>드라마</span><b>${num(s.tvs)}</b>`, { type: 'tv' }],
+    [`<span>감상 시간${s.minTv ? ' (추정)' : ''}</span><b>${hoursText(hoursM)}</b>`, null],
+    [`<span>평균 별점</span><b>${s.avg ? s.avg.toFixed(2) : '–'}</b>`, { sort: 'rating' }],
+    [`<span>좋아요</span><b>${num(s.liked)}</b>`, { liked: '1' }]
+  ];
+  let html = `
+  <section class="cin-marquee">
+    <div class="cin-wall" aria-hidden="true">${wall}</div>
+    <div class="cin-top"><span class="pill">내 영화관</span><span>${s.firstDate ? `${fmtDate(s.firstDate)} 첫 감상 기록부터` : '감상일을 입력하면 달력이 채워집니다'}</span></div>
+    <div>
+      <div class="cin-count"><b>${num(s.total)}</b><span>${s.isAll ? '편을 <strong>기록했습니다</strong>' : `편을 <strong>${s.scope}년에 봤습니다</strong>`}</span></div>
+      <p class="cin-lead">${s.isAll
+        ? `영화 ${num(s.movies)}편과 드라마 ${num(s.tvs)}편. 즐겨찾기 ${num(s.fav)}편, 좋아요 ${num(s.liked)}편.`
+        : `${s.busiest >= 0 ? `가장 많이 본 달은 ${MONTHS[s.busiest]}(${num(s.months[s.busiest])}편)` : ''}${s.streak > 1 ? `, 최장 ${s.streak}일 연속으로 봤습니다.` : '.'}`}</p>
+      <div class="cin-figs">${figs.map(([h, f]) => f ? `<button class="cin-fig" ${sfAttr(f)}>${h}</button>` : `<div class="cin-fig">${h}</div>`).join('')}</div>
+    </div>
+  </section>
+  <nav class="cin-scope" aria-label="기간 선택"><span>기간</span>
+    <button class="chip${s.isAll ? ' on' : ''}" data-action="stat-scope" data-v="all">전체 기간 <small>${num(state.byId.size)}</small></button>
+    ${s.years.map(([y, n]) => `<button class="chip${state.stats.scope === y ? ' on' : ''}" data-action="stat-scope" data-v="${y}">${y}년 <small>${num(n)}</small></button>`).join('')}
+  </nav>
+  <div class="cin-grid">`;
 
-  <div class="stats-grid">
-    <section class="glass">
-      <h2 class="panel-title"><span class="l">별점별 </span><b>정리</b></h2>
-      <p class="panel-sub">막대를 누르면 해당 별점의 작품만 봅니다 · 평가 ${rated.length}편</p>
-      <div class="rbars">
-        ${bins.map(([v, n]) => `<button class="rbar" data-action="stat-filter" data-rating="${v}" title="${v.toFixed(1)}점 ${n}편"><em>${n || ''}</em><span class="col" style="height:${(n / maxBin) * 100}%"></span><small>${v % 1 ? v.toFixed(1) : v}</small></button>`).join('')}
-        <button class="rbar none" data-action="stat-filter" data-rating="none" title="별점 없음 ${noneCount}편"><em>${noneCount || ''}</em><span class="col" style="height:${(noneCount / maxBin) * 100}%"></span><small>없음</small></button>
+  // ② 감상 달력
+  const maxM = Math.max(1, ...s.months);
+  const yearsAsc = s.years.slice(0, 16).reverse(); const maxY = Math.max(1, ...yearsAsc.map(y => y[1]));
+  html += `<section class="panel solid w12">
+    <div class="panel-head"><div><h2 class="panel-title"><span class="l">${s.heatYear}년 </span><b>감상 달력</b></h2>
+      <p class="panel-sub">칸 하나가 하루입니다. 색이 진할수록 그날 본 작품이 많습니다 · 칸을 누르면 그날 본 작품을 엽니다</p></div></div>
+    <div class="cal-wrap">
+      <div><div class="cal-scroll" id="calScroll">${calHTML(s.heatYear, s.days)}</div>
+        <div class="cal-legend"><span>적게</span><i style="background:rgba(255,255,255,.07)"></i><i class="l1" style="background:rgba(255,106,38,.34)"></i><i style="background:rgba(255,106,38,.58)"></i><i style="background:rgba(255,120,50,.85)"></i><i style="background:var(--bloom-soft)"></i><span>많이</span></div>
       </div>
-    </section>
-    <section class="glass">
-      <h2 class="panel-title"><span class="l">장르별 </span><b>정리</b></h2>
-      <p class="panel-sub">많이 기록한 장르 순 · 오른쪽 숫자는 작품 수</p>
-      <div class="gbars">
-        ${genres.length ? genres.map(([g, o]) => `<button class="gbar" data-action="stat-filter" data-genre="${esc(g)}" title="${esc(g)} ${o.n}편${o.r ? `, 평균 ${(o.sum / o.r).toFixed(1)}점` : ''}"><span>${esc(g)}</span><span class="track"><i style="width:${(o.n / maxG) * 100}%"></i></span><b>${o.n}</b></button>`).join('') : '<p class="panel-sub">장르 정보가 없습니다.</p>'}
+      <div class="cal-side">
+        <div><span>${s.heatYear}년 감상</span><b>${num(s.heatTotal)}<small>편</small></b></div>
+        <div><span>본 날</span><b>${num(s.activeDays)}<small>일</small></b></div>
+        <div><span>최장 연속</span><b>${num(s.streak)}<small>일</small></b></div>
+        <div><span>하루 최다</span><b>${num(s.maxDay)}<small>편</small></b></div>
       </div>
-    </section>
-    <section class="glass">
-      <h2 class="panel-title"><span class="l">유형과 </span><b>상태</b></h2>
-      <p class="panel-sub">숫자를 누르면 그 조합으로 목록을 엽니다</p>
-      <div class="matrix">
-        <span class="h"></span><span class="h">본 작품</span><span class="h">보고 싶은 작품</span>
-        <span>영화</span><button data-action="stat-filter" data-type="movie" data-status="watched">${cnt(movies, 'watched')}</button><button data-action="stat-filter" data-type="movie" data-status="want">${cnt(movies, 'want')}</button>
-        <span>드라마</span><button data-action="stat-filter" data-type="tv" data-status="watched">${cnt(tvs, 'watched')}</button><button data-action="stat-filter" data-type="tv" data-status="want">${cnt(tvs, 'want')}</button>
+    </div>
+    <div class="vbars" aria-label="월별 감상 수">${s.months.map((n, i) => `<button class="vbar${n ? '' : ' zero'}" data-action="stat-filter" data-status="watched" data-period="${s.heatYear}-${String(i + 1).padStart(2, '0')}" title="${s.heatYear}년 ${MONTHS[i]} ${n}편"><em>${n || ''}</em><span class="col" style="height:${n / maxM * 100}%"></span><small>${mob ? i + 1 : MONTHS[i]}</small></button>`).join('')}</div>
+    ${s.isAll && yearsAsc.length > 1 ? `<h3 class="panel-title" style="margin-top:30px;font-size:16px"><span class="l">해마다 </span><b>본 작품 수</b></h3>
+    <div class="vbars" style="height:120px">${yearsAsc.map(([y, n]) => `<button class="vbar cool" data-action="stat-scope" data-v="${y}" title="${y}년 ${n}편 · 누르면 이 해로 봅니다"><em>${num(n)}</em><span class="col" style="height:${n / maxY * 100}%"></span><small>${mob ? "'" + y.slice(2) : y}</small></button>`).join('')}</div>` : ''}
+  </section>`;
+
+  // ③ 별점
+  const binsArr = [.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map(v => [v, s.bins.get(v) || 0]);
+  const maxB = Math.max(1, ...binsArr.map(b => b[1]), s.none);
+  const tendPos = s.diff == null ? 50 : clamp(50 + s.diff / 2 * 50, 4, 96);
+  html += `<section class="panel solid w7">
+    <div class="panel-head"><div><h2 class="panel-title"><span class="l">별점 </span><b>분포</b></h2><p class="panel-sub">${scopeName} · 평가 ${num(s.rated)}편 · 막대를 누르면 그 별점의 작품만 봅니다</p></div></div>
+    <div class="vbars">
+      ${binsArr.map(([v, n]) => `<button class="vbar${n ? '' : ' zero'}" ${sfAttr({ rating: v })} title="${v.toFixed(1)}점 ${n}편"><em>${n ? num(n) : ''}</em><span class="col" style="height:${n / maxB * 100}%"></span><small>${v % 1 ? v.toFixed(1) : v}</small></button>`).join('')}
+      <button class="vbar none" ${sfAttr({ rating: 'none' })} title="별점 없음 ${s.none}편"><em>${s.none ? num(s.none) : ''}</em><span class="col" style="height:${s.none / maxB * 100}%"></span><small>없음</small></button>
+    </div>
+    ${s.diff == null ? '' : `<div class="tend"><span class="gauge" aria-hidden="true"><i style="left:${tendPos}%"></i></span>
+      <span>${Math.abs(s.diff) < .1 ? 'TMDB 평균과 거의 같은 기준으로 별점을 줍니다.' : `TMDB 평균보다 <b>${Math.abs(s.diff).toFixed(1)}점 ${s.diff > 0 ? '후하게' : '엄격하게'}</b> 별점을 주는 편입니다.`} (TMDB 10점 만점을 5점으로 환산, ${num(s.diffN)}편 비교)</span></div>`}
+  </section>`;
+
+  // ④ 장르
+  const maxG = Math.max(1, ...s.genres.map(g => g[1].n));
+  html += `<section class="panel solid w5">
+    <div class="panel-head"><div><h2 class="panel-title"><span class="l">장르 </span><b>취향</b></h2><p class="panel-sub">많이 기록한 순 · 오른쪽은 편수와 내 평균 별점</p></div></div>
+    <div class="gbars">${s.genres.length ? s.genres.map(([g, o]) => `<button class="gbar" ${sfAttr({ genre: g })}><span>${esc(g)}</span><span class="track"><i style="width:${o.n / maxG * 100}%"></i></span><b>${num(o.n)}</b><small>${o.r ? '★' + (o.sum / o.r).toFixed(1) : ''}</small></button>`).join('') : '<p class="panel-sub">장르 정보가 없습니다.</p>'}</div>
+  </section>`;
+
+  // ⑤ 시대
+  const maxD = Math.max(1, ...s.decades.map(d => d[1]));
+  html += `<section class="panel solid w5">
+    <div class="panel-head"><div><h2 class="panel-title"><span class="l">개봉 </span><b>연대</b></h2><p class="panel-sub">작품이 나온 시기별 편수</p></div></div>
+    ${s.decades.length ? `<div class="vbars">${s.decades.map(([d, n]) => `<button class="vbar cool" ${sfAttr({ decade: d })} title="${d}년대 ${n}편"><em>${num(n)}</em><span class="col" style="height:${n / maxD * 100}%"></span><small>${Number(d) >= 2000 ? d : "'" + d.slice(2)}s</small></button>`).join('')}</div>` : '<p class="panel-sub">개봉일 정보가 없습니다.</p>'}
+  </section>`;
+
+  // ⑥ 감독 · 국가
+  html += `<section class="panel solid w7">
+    <div class="panel-head"><div><h2 class="panel-title"><span class="l">자주 본 </span><b>감독</b></h2><p class="panel-sub">2편 이상 기록한 감독 · 누르면 그 감독의 작품을 찾습니다</p></div></div>
+    ${s.directors.length ? `<ol class="rank">${s.directors.map(([n, o]) => `<li><button ${sfAttr({ q: n })}><span>${esc(n)}</span><em>${num(o.n)}편${o.r ? ` · ★${(o.sum / o.r).toFixed(1)}` : ''}</em></button></li>`).join('')}</ol>` : '<p class="panel-sub">같은 감독의 작품을 2편 이상 기록하면 여기에 모입니다.</p>'}
+    ${s.countries.length ? `<h3 class="panel-title" style="margin:24px 0 12px;font-size:16px"><span class="l">제작 </span><b>국가</b></h3>
+    <div class="ctags">${s.countries.map(([c, n]) => `<button class="chip" ${sfAttr({ country: c })}>${esc(regionName(c))} <small>${num(n)}</small></button>`).join('')}</div>` : ''}
+  </section>`;
+
+  // ⑦ 선반
+  const shelf = state.stats.shelf;
+  const shelfList = shelf === 'fav' ? s.favs : shelf === 'want' ? s.wants : s.top;
+  const shelfEmpty = { top: '별 5개를 준 작품이 아직 없습니다.', fav: '상세 화면에서 즐겨찾기를 켜면 여기에 모입니다.', want: '보고 싶은 작품으로 저장한 작품이 없습니다.' }[shelf];
+  const pick = state.stats.pick && state.byId.get(state.stats.pick);
+  html += `<section class="panel solid w12">
+    <div class="panel-head">
+      <div><h2 class="panel-title"><span class="l">나의 </span><b>선반</b></h2><p class="panel-sub">${shelf === 'want' ? '전체 기간' : scopeName} · ${num(shelfList.length)}편${shelfList.length > 30 ? ' 중 30편' : ''}</p></div>
+      <div class="shelf-head">
+        <div class="seg sm" role="group" aria-label="선반 선택">
+          <button data-action="stat-shelf" data-v="top" class="${shelf === 'top' ? 'on' : ''}">별 5개</button>
+          <button data-action="stat-shelf" data-v="fav" class="${shelf === 'fav' ? 'on' : ''}">즐겨찾기</button>
+          <button data-action="stat-shelf" data-v="want" class="${shelf === 'want' ? 'on' : ''}">보고 싶은 작품</button>
+        </div>
+        ${s.wants.length ? `<button class="btn sm bloom" data-action="stat-pick">${ICON.dice}오늘 뭐 볼까</button>` : ''}
       </div>
-    </section>
-    <section class="glass">
-      <h2 class="panel-title"><span class="l">즐겨찾기 </span><b>작품</b></h2>
-      <p class="panel-sub">${favs.length ? '별점 높은 순' : '상세 화면에서 즐겨찾기를 켜면 여기에 모입니다'}</p>
-      ${favs.length ? stripHTML('favs', favs.slice(0, 20).map(e => pcardHTML(e.title, e)).join(''), 'compact') : ''}
-    </section>
-  </div>`;
-  restoreStrips(body, sp);
+    </div>
+    ${pick ? `<div class="pick" data-action="open" data-id="${esc(pick.title_id)}" role="button" tabindex="0">${posterHTML(pick.title, 'w185')}
+      <div><small>보고 싶은 작품 ${num(s.wants.length)}편 중에서 골랐습니다</small><h4>${esc(pick.title.title)}</h4>
+      <p>${esc([yearOf(pick.title.release_date), typeLabel(pick.title.media_type), (pick.title.genres || []).slice(0, 2).join(', '), pick.title.runtime ? (pick.title.media_type === 'movie' ? pick.title.runtime + '분' : '회당 ' + pick.title.runtime + '분') : ''].filter(Boolean).join(' · '))}</p>
+      <p style="margin-top:10px"><button class="linkbtn" data-action="stat-pick">다른 작품 고르기</button></p></div></div>` : ''}
+    ${shelfList.length ? stripHTML('shelf-' + shelf, shelfList.slice(0, 30).map(e => pcardHTML(e.title, e)).join(''), 'compact') : `<p class="muted-note">${shelfEmpty}</p>`}
+    ${shelfList.length > 30 ? `<p style="margin:14px 0 0"><button class="linkbtn" ${shelf === 'fav' ? sfAttr({ favorite: '1' }) : shelf === 'want' ? 'data-action="stat-filter" data-status="want"' : sfAttr({ rating: 5 })}>${num(shelfList.length)}편 모두 보기</button></p>` : ''}
+  </section>`;
+
+  html += '</div>';
+  body.innerHTML = html;
+  settleImages(body); restoreStrips(body, sp);
+  const cs = $('#calScroll'); if (cs && !s.isAll && s.scope === String(new Date().getFullYear())) cs.scrollLeft = cs.scrollWidth;
+  else if (cs && s.isAll) cs.scrollLeft = cs.scrollWidth;
 }
 function renderLibraryStateInto(body) {
   if (state.lib.status === 'noconfig') body.innerHTML = emptyHTML('저장소가', '연결되지 않았습니다', 'Supabase를 연결하면 내 영화관 통계를 볼 수 있습니다.', '<button class="btn primary" data-action="settings">설정 열기</button>');
   else if (state.lib.status === 'error') body.innerHTML = emptyHTML('통계를', '불러오지 못했습니다', esc(state.lib.error.message), '<button class="btn primary" data-action="reload-lib">다시 불러오기</button>');
-  else body.innerHTML = `<div class="stats-hero"><div class="skel" style="height:360px;border-radius:30px"></div><div class="skel" style="height:360px;border-radius:30px"></div></div>`;
+  else { body.innerHTML = loadingHTML(); paintProgress(); }
 }
 
 /* ════════════ 설정 모달 ════════════ */
@@ -1701,13 +2548,16 @@ function openSettings() {
   setField('#sTmdb', '#srcTmdb', C.TMDB_API_KEY, ls.tmdb);
   setField('#sUrl', '#srcUrl', C.SUPABASE_URL, ls.sbUrl);
   setField('#sKey', '#srcKey', C.SUPABASE_ANON_KEY, ls.sbKey);
-  $('#testOut').innerHTML = '';
+  $('#testOut').innerHTML = ''; $('#maintOut').innerHTML = '';
+  const last = state.sync.lastAt ? new Date(state.sync.lastAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '';
+  $('#cacheInfo').textContent = `이 기기에 ${num(state.byId.size)}편을 저장해 두고, 앱을 열 때 바뀐 부분만 Supabase에서 받아옵니다.${last ? ` 마지막 동기화 ${last}.` : ''} 배우 이름 검색은 ${HAS_PEOPLE === false ? 'people 열이 없어 꺼져 있습니다(아래 SQL 실행 필요).' : '켜져 있습니다.'}`;
   $('#settingsRoot').hidden = false; document.body.classList.add('lock');
 }
 function closeSettings() { $('#settingsRoot').hidden = true; if (!state.detail) document.body.classList.remove('lock'); }
 
 async function saveSettings() {
   const ls = readLocal();
+  const prevUrl = cfg().sbUrl;
   if (!C.TMDB_API_KEY) ls.tmdb = $('#sTmdb').value.trim();
   if (!C.SUPABASE_URL) ls.sbUrl = $('#sUrl').value.trim();
   if (!C.SUPABASE_ANON_KEY) ls.sbKey = $('#sKey').value.trim();
@@ -1716,17 +2566,57 @@ async function saveSettings() {
   out.innerHTML = '<div class="loading-line"><span class="spin"></span>연결을 확인하는 중</div>';
   const lines = [];
   try { await tmdb('/configuration'); lines.push(['ok', 'TMDB 연결 성공']); } catch (e) { lines.push(['bad', 'TMDB: ' + e.message]); }
-  try { await sb('titles?select=id&limit=1'); await sb('entries?select=title_id&limit=1'); lines.push(['ok', 'Supabase 연결 및 테이블 확인 성공']); } catch (e) { lines.push(['bad', 'Supabase: ' + e.message]); }
+  try {
+    await sb('titles?select=id&limit=1'); await sb('entries?select=title_id&limit=1');
+    lines.push(['ok', 'Supabase 연결 및 테이블 확인 성공']);
+    try { await sb('titles?select=people&limit=1'); setHasPeople(true); lines.push(['ok', '배우 검색 열(people) 확인']); }
+    catch (e) { if (isPeopleErr(e)) { setHasPeople(false); lines.push(['bad', '배우 검색 열(people)이 없습니다. 아래 SQL을 한 번 더 실행하세요.']); } }
+  } catch (e) { lines.push(['bad', 'Supabase: ' + e.message]); }
   out.innerHTML = lines.map(([c, m]) => `<div class="${c}">${c === 'ok' ? '✓' : '✕'} ${esc(m)}</div>`).join('');
   $('#srcTmdb').textContent = C.TMDB_API_KEY ? 'CONFIG 사용 중' : ls.tmdb ? '브라우저에 저장됨' : '비어 있음';
   $('#srcUrl').textContent = C.SUPABASE_URL ? 'CONFIG 사용 중' : ls.sbUrl ? '브라우저에 저장됨' : '비어 있음';
   $('#srcKey').textContent = C.SUPABASE_ANON_KEY ? 'CONFIG 사용 중' : ls.sbKey ? '브라우저에 저장됨' : '비어 있음';
   await loadGenres();
   if (state.trending.status !== 'ready') { state.trending.status = 'idle'; loadTrending(); }
+  if (prevUrl !== cfg().sbUrl) { state.lib.status = 'idle'; state.byId = new Map(); state.libVer++; }
   loadLibrary();
 }
 
+/* 예전에 저장된 작품들의 배우 이름 색인을 한 번에 채움 (500편씩) */
+async function buildPeopleIndex(btn) {
+  const out = $('#maintOut');
+  if (!sbReady()) { out.innerHTML = '<div class="bad">✕ Supabase를 먼저 연결하세요.</div>'; return; }
+  btn.disabled = true;
+  try {
+    try { await sb('titles?select=people&limit=1'); setHasPeople(true); }
+    catch (e) { if (isPeopleErr(e)) { setHasPeople(false); out.innerHTML = '<div class="bad">✕ people 열이 없습니다. 아래 SQL을 SQL Editor에서 한 번 더 실행한 뒤 다시 누르세요.</div>'; return; } throw e; }
+    let done = 0;
+    for (let guard = 0; guard < 400; guard++) {
+      const rows = await sb('titles?select=id,tmdb_id,media_type,directors,cast_members&people=is.null&limit=500');
+      if (!rows || !rows.length) break;
+      await sb('titles?on_conflict=id', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal',
+        body: rows.map(r => ({ id: r.id, tmdb_id: r.tmdb_id, media_type: r.media_type, people: peopleOf(r) || ' ' })) });
+      done += rows.length;
+      out.innerHTML = `<div class="loading-line"><span class="spin"></span>${num(done)}편 색인 완료</div>`;
+    }
+    out.innerHTML = `<div class="ok">✓ ${num(done)}편의 배우 검색 색인을 채웠습니다. 목록을 다시 받습니다.</div>`;
+    loadLibrary({ full: true });
+  } catch (e) { out.innerHTML = `<div class="bad">✕ ${esc(e.message)}</div>`; }
+  finally { btn.disabled = false; }
+}
+
 /* ════════════ 이벤트 ════════════ */
+function libToTop() {
+  const sec = $('#view-library');
+  const y = sec.getBoundingClientRect().top + window.scrollY - 8;
+  if (window.scrollY > y) window.scrollTo(0, y);
+}
+function applyLib() { renderLibrary(); libToTop(); vlPaint(true); }
+function updateFab() {
+  const f = $('#fabTop');
+  f.classList.toggle('off', !(state.view !== 'search' && window.scrollY > 1400));
+}
+
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-action]'); if (!el) return;
   const a = el.dataset.action;
@@ -1737,6 +2627,10 @@ document.addEventListener('click', e => {
     case 'close-settings': closeSettings(); break;
     case 'settings-save': saveSettings(); break;
     case 'settings-reset': try { localStorage.removeItem(LS_KEY); } catch {} toast('브라우저에 저장한 키를 지웠습니다.'); openSettings(); renderNotice(); break;
+    case 'full-resync':
+      Store.del(cacheKey()).then(() => { $('#maintOut').innerHTML = '<div class="ok">✓ 기기 캐시를 비우고 전체 목록을 다시 받는 중입니다.</div>'; loadLibrary({ full: true }); });
+      break;
+    case 'people-index': buildPeopleIndex(el); break;
     case 'copy-sql': {
       e.preventDefault();
       const sql = $('#schemaSql').textContent.trim();
@@ -1748,17 +2642,19 @@ document.addEventListener('click', e => {
     case 'reload-lib': loadLibrary(); break;
     case 'recent-order':
       state.recentOrder = el.dataset.v === 'asc' ? 'asc' : 'desc';
-      try { localStorage.setItem(RECENT_ORDER_KEY, state.recentOrder); } catch {}
+      lsSet('mycinema.recentOrder', state.recentOrder);
       renderSearch();
       break;
     case 'recent-all':
-      Object.assign(state.filters, { q: '', type: 'all', status: 'watched', genre: '', rating: '', liked: false, favorite: false, sort: state.recentOrder === 'asc' ? 'recent_asc' : 'recent' });
-      setView('library');
+      Object.assign(state.filters, FILTER_DEFAULT, { status: 'watched', sort: state.recentOrder === 'asc' ? 'recent_asc' : 'recent' });
+      setView('library', { keepScroll: false });
       break;
-    case 'hero-shuffle': rotateHero(); break;
+    case 'hero-next': heroGo(1); break;
+    case 'hero-prev': heroGo(-1); break;
+    case 'hero-toggle': heroToggle(); break;
     case 'strip': {
       const el2 = el.parentElement.querySelector('.strip');
-      el2.scrollBy({ left: Number(el.dataset.dir) * el2.clientWidth * .85, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      el2.scrollBy({ left: Number(el.dataset.dir) * el2.clientWidth * .85, behavior: REDUCED ? 'auto' : 'smooth' });
       break;
     }
     case 'stype':
@@ -1779,35 +2675,48 @@ document.addEventListener('click', e => {
       fetchTitle(d.type, d.tmdbId).then(t => {
         if (state.detail !== d) return;
         d.data = t; d.loading = false;
-        const s = state.byId.get(d.id); if (s) s.title = t;
-        renderDetailInfo(); renderView(); toast('TMDB 최신 정보로 갱신했습니다.', 'ok');
+        refreshSavedTitle(d.id, t);
+        renderDetailInfo(); toast('TMDB 최신 정보로 갱신했습니다.', 'ok');
         return cacheTitle(t);
       }).catch(err => { d.loading = false; renderDetailInfo(); toast(err.message, 'error'); });
       break;
     }
-    case 'rec-status': {
-      const d = state.detail; d.draft.status = el.dataset.v;
-      if (el.dataset.v === 'watched' && !d.draft.watched_on && !state.byId.has(d.id)) { /* 날짜는 사용자가 직접 선택 */ }
-      syncRecord(); break;
-    }
+    case 'rec-status': state.detail.draft.status = el.dataset.v; syncRecord(); break;
     case 'rec-clear-rating': state.detail.draft.rating = null; syncRecord(); break;
     case 'rec-today': state.detail.draft.watched_on = todayISO(); $('#recDate').value = state.detail.draft.watched_on; syncRecord(); break;
     case 'rec-like': state.detail.draft.liked = !state.detail.draft.liked; syncRecord(); break;
     case 'rec-fav': state.detail.draft.favorite = !state.detail.draft.favorite; syncRecord(); break;
     case 'rec-save': saveRecord(); break;
     case 'rec-remove': removeRecord(); break;
-    case 'lf': state.filters[el.dataset.k] = el.dataset.v; renderLibrary(); break;
-    case 'lf-toggle': state.filters[el.dataset.k] = !state.filters[el.dataset.k]; renderLibrary(); break;
-    case 'lf-clear': state.filters[el.dataset.k] = ''; renderLibrary(); break;
-    case 'lf-reset': Object.assign(state.filters, { q: '', type: 'all', status: 'all', genre: '', rating: '', liked: false, favorite: false }); renderLibrary(); break;
-    case 'stat-filter':
-      Object.assign(state.filters, {
-        q: '', type: el.dataset.type || 'all', status: el.dataset.status || 'all', genre: el.dataset.genre || '',
-        rating: el.dataset.rating || '', liked: !!el.dataset.liked, favorite: !!el.dataset.favorite,
-        sort: el.dataset.rating ? 'recent' : state.filters.sort
-      });
-      setView('library');
+    case 'lf': state.filters[el.dataset.k] = el.dataset.v; applyLib(); break;
+    case 'lf-toggle': state.filters[el.dataset.k] = !state.filters[el.dataset.k]; applyLib(); break;
+    case 'lf-clear': state.filters[el.dataset.k] = ''; applyLib(); break;
+    case 'lf-reset': Object.assign(state.filters, FILTER_DEFAULT); applyLib(); break;
+    case 'lmode':
+      if (state.libMode === el.dataset.v) break;
+      { const anchor = vlAnchor(); state.libMode = el.dataset.v; lsSet('mycinema.libMode', state.libMode); renderLibrary(); vlRestore(anchor); vlPaint(true); }
       break;
+    case 'to-top': window.scrollTo({ top: 0, behavior: REDUCED ? 'auto' : 'smooth' }); break;
+    case 'stat-scope': state.stats.scope = el.dataset.v; state.stats.pick = null; renderStats(); break;
+    case 'stat-shelf': state.stats.shelf = el.dataset.v; renderStats(); break;
+    case 'stat-pick': {
+      e.stopPropagation();
+      const w = statsData(state.stats.scope).wants; if (!w.length) break;
+      let id; for (let i = 0; i < 6; i++) { id = w[Math.floor(Math.random() * w.length)].title_id; if (id !== state.stats.pick) break; }
+      state.stats.pick = id; state.stats.shelf = 'want'; renderStats();
+      break;
+    }
+    case 'stat-filter': {
+      const ds = el.dataset;
+      Object.assign(state.filters, FILTER_DEFAULT, {
+        type: ds.type || 'all', status: ds.status || (ds.period ? 'watched' : 'all'), genre: ds.genre || '',
+        rating: ds.rating ? String(ds.rating) : '', liked: !!ds.liked, favorite: !!ds.favorite,
+        period: ds.period || '', decade: ds.decade || '', country: ds.country || '', q: ds.q || '',
+        sort: ds.sort || (ds.period ? 'recent' : state.filters.sort === 'rating' && !ds.rating ? 'recent' : state.filters.sort)
+      });
+      setView('library', { keepScroll: false });
+      break;
+    }
   }
 });
 
@@ -1825,6 +2734,9 @@ document.addEventListener('keydown', e => {
   if ((e.key === 'Enter' || e.key === ' ') && !typing && e.target.matches('[role="button"][data-action="open"]')) {
     e.preventDefault(); openDetail(e.target.dataset.id);
   }
+  if (!typing && !state.detail && state.view === 'search' && !state.search.q && $('#hero') && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && e.target.closest && e.target.closest('#hero')) {
+    e.preventDefault(); heroGo(e.key === 'ArrowRight' ? 1 : -1);
+  }
   if ((e.metaKey || e.ctrlKey) && e.key === 's' && state.detail) { e.preventDefault(); saveRecord(); }
 });
 
@@ -1832,19 +2744,40 @@ const debouncedSearch = debounce(v => runSearch(v), 450);
 $('#q').addEventListener('input', e => { $('[data-action="clear-search"]').hidden = !e.target.value; debouncedSearch(e.target.value); });
 $('#searchForm').addEventListener('submit', e => { e.preventDefault(); runSearch($('#q').value); $('#q').blur(); });
 
-const debouncedLib = debounce(() => renderLibrary(), 180);
+const debouncedLib = debounce(() => applyLib(), 220);
 $('#libQ').addEventListener('input', e => { state.filters.q = e.target.value; debouncedLib(); });
-$('#fGenre').addEventListener('change', e => { state.filters.genre = e.target.value; renderLibrary(); });
-$('#fRating').addEventListener('change', e => { state.filters.rating = e.target.value; renderLibrary(); });
-$('#fSort').addEventListener('change', e => { state.filters.sort = e.target.value; renderLibrary(); });
+$('#libQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+$('#fGenre').addEventListener('change', e => { state.filters.genre = e.target.value; applyLib(); });
+$('#fRating').addEventListener('change', e => { state.filters.rating = e.target.value; applyLib(); });
+$('#fSort').addEventListener('change', e => { state.filters.sort = e.target.value; applyLib(); });
 
+/* 스크롤: rAF 1회로 묶고, 빠른 플링 중엔 이미지 요청을 미룸 */
+let scrollRaf = 0;
+window.addEventListener('scroll', () => {
+  const now = performance.now(), y = window.scrollY;
+  const v = Math.abs(y - VL.lastY) / Math.max(1, now - VL.lastT);
+  VL.lastY = y; VL.lastT = now;
+  if (v > 2.2) VL.fast = true;
+  vlSettle();
+  if (!scrollRaf) scrollRaf = requestAnimationFrame(() => { scrollRaf = 0; vlPaint(); updateFab(); });
+}, { passive: true });
 document.addEventListener('scroll', e => { const t = e.target; if (t && t.classList && t.classList.contains('strip')) updateStrip(t); }, { capture: true, passive: true });
-window.addEventListener('resize', debounce(() => updateStrips(), 150));
+
+function setTb() { const h = $('#topbar').offsetHeight; if (h) document.documentElement.style.setProperty('--tb', h + 'px'); }
+let lastW = window.innerWidth;
+window.addEventListener('resize', debounce(() => {
+  setTb(); updateStrips();
+  if (window.innerWidth === lastW) { vlPaint(); return; }   // 모바일 주소창 높이 변화는 무시
+  lastW = window.innerWidth;
+  if (state.view === 'library' && VL.root) { const a = vlAnchor(); VL.width = 0; vlLayout(); vlRestore(a); vlPaint(true); }
+  else VL.width = 0;
+}, 160));
 window.addEventListener('popstate', () => setView((location.hash || '#search').slice(1), { push: false }));
 window.addEventListener('beforeunload', e => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ════════════ 시작 ════════════ */
 $('#sqlPre').textContent = $('#schemaSql').textContent.trim();
+setTb();
 setView((location.hash || '#search').slice(1), { push: false });
 renderNotice();
 (async () => {
