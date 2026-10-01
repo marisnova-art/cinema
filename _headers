@@ -1,0 +1,13 @@
+# Cloudflare Pages 캐시 규칙 — 새 버전이 바로 반영되도록 앱 화면·서비스워커는 매번 확인
+/sw.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
+/index.html
+  Cache-Control: no-cache
+/
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+  Content-Type: application/manifest+json
+/icons/*
+  Cache-Control: public, max-age=604800
